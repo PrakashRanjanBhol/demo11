@@ -1,0 +1,16 @@
+<idea-plugin>
+    <id>com.example.demo11</id>
+    <name>SidePanelPlugin</name>
+    <description>A simple side panel plugin aaaaaaaaaaaaaa</description>
+    <version>1.0</version>
+    <vendor>My Company</vendor>
+
+    <!-- Define Tool Window Extension -->
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow id="Chat Panel"
+                    anchor="left"
+                    factoryClass="com.example.demo11.SidepanelFactory"
+                    secondary="true"
+                    icon="/icons/logo.svg"/>
+    </extensions>
+</idea-plugin>
