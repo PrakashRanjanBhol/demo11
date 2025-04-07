@@ -428,3 +428,62 @@ client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
           System.out.println("Response body:\n" + response.body());
       })
       .join();
+
+
+
+
+
+
+
+import okhttp3.*;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.util.concurrent.TimeUnit;
+
+public class OkHttpStreamingExample {
+    public static void main(String[] args) throws Exception {
+        OkHttpClient client = new OkHttpClient.Builder()
+                .readTimeout(0, TimeUnit.MILLISECONDS) // Keep reading for streaming
+                .build();
+
+        String json = """
+            {
+              "prompt": "hello",
+              "category_type": "chat",
+              "session_id": "123",
+              "mld_name": "example"
+            }
+        """;
+
+        RequestBody body = RequestBody.create(json, MediaType.parse("application/json"));
+
+        Request request = new Request.Builder()
+                .url("https://your-api.com/stream-endpoint") // Replace with your URL
+                .addHeader("Authorization", "Bearer your-token-here")
+                .addHeader("Content-Type", "application/json")
+                .post(body)
+                .build();
+
+        Call call = client.newCall(request);
+        Response response = call.execute();
+
+        if (response.isSuccessful()) {
+            BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream()));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                System.out.println("Chunk: " + line);
+            }
+        } else {
+            System.err.println("HTTP Error " + response.code() + ": " + response.message());
+            if (response.body() != null) {
+                System.err.println("Error Body: " + response.body().string());
+            }
+        }
+    }
+}
+
+
+dependencies {
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+}
