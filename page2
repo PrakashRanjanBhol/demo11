@@ -1,0 +1,75 @@
+private void fetchStreamingResponse(String userInput, JTextPane responsePane) {
+    new Thread(() -> {
+        try {
+            String token = "Bearer YOUR_AUTH_TOKEN"; // 🔐 Replace with your real token
+            String apiUrl = "https://your-api-endpoint.com/stream"; // ✅ Replace with your actual endpoint
+
+            // JSON body
+            String jsonBody = new JSONObject()
+                    .put("prompt", userInput)
+                    .put("category_type", "1")
+                    .put("session_id", "1")
+                    .put("mld_name", "1")
+                    .toString();
+
+            OkHttpClient client = new OkHttpClient();
+
+            RequestBody body = RequestBody.create(jsonBody, MediaType.parse("application/json"));
+
+            Request request = new Request.Builder()
+                    .url(apiUrl)
+                    .header("Authorization", token)
+                    .post(body)
+                    .build();
+
+            client.newCall(request).enqueue(new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    e.printStackTrace();
+                }
+
+                @Override
+                public void onResponse(Call call, Response response) throws IOException {
+                    if (!response.isSuccessful()) {
+                        System.err.println("Request failed: " + response.code());
+                        return;
+                    }
+
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream()));
+                    StringBuilder html = new StringBuilder("<html><body style='font-family:sans-serif;'>");
+                    html.append("<div style='margin-bottom:10px;'><b>User:</b> ").append(userInput).append("</div>");
+
+                    boolean[] inCodeBlock = {false};
+                    String line;
+
+                    while ((line = reader.readLine()) != null) {
+                        String finalLine = line;
+                        if (finalLine.startsWith("```")) {
+                            inCodeBlock[0] = !inCodeBlock[0];
+                            if (inCodeBlock[0]) {
+                                html.append("<div style='background:#f5f5f5;border:1px solid #ccc;padding:8px;margin:6px 0;font-family:monospace;white-space:pre;'>");
+                            } else {
+                                html.append("</div>");
+                            }
+                        } else {
+                            if (inCodeBlock[0]) {
+                                html.append(applyJavaHighlighting(finalLine)).append("<br/>");
+                            } else {
+                                html.append(applyMarkdown(finalLine));
+                            }
+                        }
+
+                        String finalHtml = html.toString() + "</body></html>";
+                        SwingUtilities.invokeLater(() -> {
+                            responsePane.setText(finalHtml);
+                            responsePane.setCaretPosition(responsePane.getDocument().getLength());
+                        });
+                    }
+                }
+            });
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }).start();
+}
