@@ -178,3 +178,127 @@ private void simulateStreamingResponse(String userInput, JTextPane responsePane,
         }
     }).start();
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ private void simulateStreamingResponse(String userInput, JTextPane responsePane) {
+        new Thread(() -> {
+            try {
+                String[] simulatedLines = {
+                        "# AI Response",
+                        "Here is an example of **Java code** you asked for:",
+                        "```java",
+                        "public class HelloWorld {",
+                        "    public static void main(String[] args) {",
+                        "        System.out.println(\"Hello, world!\");",
+                        "    }",
+                        "}",
+                        "```",
+                        "Let me know if you want *Python* or *JavaScript* versions.",
+                        "- Easy to use",
+                        "- Fast and clean",
+                        "## Thanks!"
+                };
+
+                boolean inCodeBlock = false;
+                StringBuilder newHtml = new StringBuilder();
+                String currentText = responsePane.getText();
+
+                // Process existing text in the responsePane (for simulating streaming)
+                if (currentText.startsWith("<html>") && currentText.contains("<body")) {
+                    int bodyStart = currentText.indexOf("<body");
+                    int bodyEnd = currentText.indexOf(">", bodyStart);
+                    int endIndex = currentText.lastIndexOf("</body>");
+                    if (bodyStart != -1 && bodyEnd != -1 && endIndex != -1) {
+                        currentText = currentText.substring(bodyEnd + 1, endIndex);
+                    }
+                }
+
+                newHtml.append("<div style='background:#1f2937;border:1px solid #3b82f6;border-radius:8px;padding:10px;margin-bottom:12px;font-family:\"Poppins\", \"Lato\", sans-serif;'>")
+                        .append("<div style='color:#60a5fa;font-weight:bold;margin-bottom:4px;'>User</div>")
+                        .append("<div style='color:#d4d4d4;'>").append(userInput).append("</div>")
+                        .append("</div>");
+
+                newHtml.append("<div style='background:#2c2c2c;border:1px solid #3c3c3c;border-radius:8px;padding:12px;margin-bottom:12px;font-family:\"Poppins\", \"Lato\", sans-serif;'>")
+                        .append("<div style='color:#98c379;font-weight:bold;margin-bottom:6px;'>AI</div>")
+                        .append("<div style='color:#d4d4d4;'>");
+
+                StringBuilder codeBlockContent = new StringBuilder(); // To store code block text
+
+                for (String line : simulatedLines) {
+                    Thread.sleep(400);
+
+                    if (line.startsWith("```")) {
+                        inCodeBlock = !inCodeBlock;
+                        if (inCodeBlock) {
+                            // Add copy icon just above the code block
+                            newHtml.append("<div style='text-align:right;'>")
+                                    .append("<img src='file:/path/to/copy_icon.png' style='cursor:pointer;' title='Copy Code'/>")
+                                    .append("</div>");
+                            newHtml.append("<div style='background:#1e1e1e;border:1px solid #333;border-radius:6px;padding:10px;font-family:\"JetBrains Mono\", Consolas, \"Fira Code\", monospace;white-space:pre;color:#d4d4d4;margin:6px 0;'>");
+                        } else {
+                            newHtml.append("</div>");
+                        }
+                    } else {
+                        if (inCodeBlock) {
+                            codeBlockContent.append(line).append("\n");  // Collect code block content
+                            newHtml.append(applyJavaHighlighting(line)).append("<br/>");
+                        } else {
+                            newHtml.append(applyMarkdown(line));
+                        }
+                    }
+
+                    String fullHtml =
+                            "<html><body style='font-family:\"Poppins\", \"Lato\", sans-serif;padding:8px;background:#1e1e1e; color:#d4d4d4;'>"
+                                    + currentText + newHtml + "</div></div></body></html>";
+
+                    SwingUtilities.invokeLater(() -> {
+                        responsePane.setText(fullHtml);
+                        responsePane.setCaretPosition(responsePane.getDocument().getLength());
+                    });
+                }
+
+                // Handle the copy action by adding a MouseListener
+                responsePane.addMouseListener(new MouseAdapter() {
+                    @Override
+                    public void mouseClicked(MouseEvent e) {
+                        // If the click is on the copy icon area (You can determine the exact position of the icon)
+                        if (isClickOnCopyIcon(e)) {
+                            copyCodeToClipboard(codeBlockContent.toString());
+                        }
+                    }
+
+                    private boolean isClickOnCopyIcon(MouseEvent e) {
+                        // Logic to check if the click is on the copy icon
+                        // Example logic: check if the click is in the specific region of the icon
+                        return true;  // Placeholder (you'll need a more refined approach)
+                    }
+                });
+            } catch (InterruptedException ex) {
+                ex.printStackTrace();
+            }
+        }).start();
+    }
+
+    // Method to copy the code from the code block to clipboard
+    private void copyCodeToClipboard(String code) {
+        StringSelection stringSelection = new StringSelection(code);
+        Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+        clipboard.setContents(stringSelection, null);
+    }
