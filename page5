@@ -213,58 +213,85 @@ public class SidepanelFactory implements ToolWindowFactory {
 private void fetchStreamingResponse(String userInput, JTextPane responsePane) {
     new Thread(() -> {
         try {
-            String token = "Bearer YOUR_AUTH_TOKEN"; // 🔐 Replace with real token
-            String endpoint = "https://your-api-endpoint.com/stream"; // 🔗 Replace with real endpoint
+            String token = "Bearer YOUR_AUTH_TOKEN"; // 🔐 Replace with your real token
+            String apiUrl = "https://your-api-endpoint.com/stream"; // ✅ Replace with your actual endpoint
 
-            HttpClient client = HttpClient.newHttpClient();
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(endpoint))
-                    .header("Content-Type", "application/json")
+            // JSON body
+            String jsonBody = new JSONObject()
+                    .put("prompt", userInput)
+                    .put("category_type", "1")
+                    .put("session_id", "1")
+                    .put("mld_name", "1")
+                    .toString();
+
+            OkHttpClient client = new OkHttpClient();
+
+            RequestBody body = RequestBody.create(jsonBody, MediaType.parse("application/json"));
+
+            Request request = new Request.Builder()
+                    .url(apiUrl)
                     .header("Authorization", token)
-                    .POST(HttpRequest.BodyPublishers.ofString("{\"query\": \"" + userInput + "\"}"))
+                    .post(body)
                     .build();
 
-            client.sendAsync(request, HttpResponse.BodyHandlers.ofLines())
-                    .thenAccept(response -> {
-                        StringBuilder html = new StringBuilder();
-                        html.append("<html><body style='font-family:\"Poppins\", \"Lato\", sans-serif; background:#1e1e1e; color:#d4d4d4; padding:8px;'>");
-                        html.append("<div style='background:#1f2937;border:1px solid #3b82f6;border-radius:8px;padding:10px;margin-bottom:12px;'>")
+            client.newCall(request).enqueue(new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    e.printStackTrace();
+                }
+
+                @Override
+                public void onResponse(Call call, Response response) throws IOException {
+                    if (!response.isSuccessful()) {
+                        System.err.println("Request failed: " + response.code());
+                        return;
+                    }
+
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream()));
+                    StringBuilder html = new StringBuilder(
+                            "<html><body style='font-family:\"Poppins\", \"Lato\", sans-serif;"
+                                    + "color:#dcdcdc;background-color:#1e1e1e;margin:0;padding:10px;'>");
+
+                    html.append("<div style='background:#1f2937;border:1px solid #3b82f6;border-radius:8px;padding:10px;margin-bottom:12px;'>")
                             .append("<div style='color:#60a5fa;font-weight:bold;margin-bottom:4px;'>User</div>")
                             .append("<div>").append(userInput).append("</div></div>");
 
-                        html.append("<div style='background:#2c2c2c;border:1px solid #3c3c3c;border-radius:8px;padding:12px;margin-bottom:12px;'>")
+                    html.append("<div style='background:#2c2c2c;border:1px solid #3c3c3c;border-radius:8px;padding:12px;margin-bottom:12px;'>")
                             .append("<div style='color:#98c379;font-weight:bold;margin-bottom:6px;'>AI</div>")
                             .append("<div style='color:#d4d4d4;'>");
 
-                        boolean[] inCodeBlock = {false};
+                    boolean[] inCodeBlock = {false};
+                    String line;
 
-                        response.body().forEach(line -> {
-                            if (line.trim().startsWith("```")) {
-                                inCodeBlock[0] = !inCodeBlock[0];
-                                if (inCodeBlock[0]) {
-                                    html.append("<div style='background:#1e1e1e;border:1px solid #333;border-radius:6px;padding:10px;font-family:\"JetBrains Mono\", Consolas, \"Fira Code\", monospace;white-space:pre;margin:6px 0;'>");
-                                } else {
-                                    html.append("</div>");
-                                }
+                    while ((line = reader.readLine()) != null) {
+                        String finalLine = line;
+
+                        if (finalLine.trim().startsWith("```")) {
+                            inCodeBlock[0] = !inCodeBlock[0];
+                            if (inCodeBlock[0]) {
+                                html.append("<div style='background:#1e1e1e;border:1px solid #333;"
+                                        + "padding:10px;margin:6px 0;border-radius:6px;"
+                                        + "font-family:\"JetBrains Mono\", Consolas, \"Fira Code\", monospace;"
+                                        + "white-space:pre;'>");
                             } else {
-                                if (inCodeBlock[0]) {
-                                    html.append(applyJavaHighlighting(line)).append("<br/>");
-                                } else {
-                                    html.append(applyMarkdown(line));
-                                }
+                                html.append("</div>");
                             }
+                        } else {
+                            if (inCodeBlock[0]) {
+                                html.append(applyJavaHighlighting(finalLine)).append("<br/>");
+                            } else {
+                                html.append(applyMarkdown(finalLine));
+                            }
+                        }
 
-                            String fullHtml = html.toString() + "</div></div></body></html>";
-
-                            SwingUtilities.invokeLater(() -> {
-                                responsePane.setText(fullHtml);
-                                responsePane.setCaretPosition(responsePane.getDocument().getLength());
-                            });
+                        String finalHtml = html.toString() + "</div></div></body></html>";
+                        SwingUtilities.invokeLater(() -> {
+                            responsePane.setText(finalHtml);
+                            responsePane.setCaretPosition(responsePane.getDocument().getLength());
                         });
-                    }).exceptionally(ex -> {
-                        ex.printStackTrace();
-                        return null;
-                    });
+                    }
+                }
+            });
 
         } catch (Exception ex) {
             ex.printStackTrace();
