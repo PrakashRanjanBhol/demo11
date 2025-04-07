@@ -1,0 +1,136 @@
+private volatile Call currentStreamingCall; // to cancel active call
+
+
+
+private void fetchStreamingResponse(String userInput, JTextPane responsePane, JButton stopButton) {
+    new Thread(() -> {
+        try {
+            String token = "Bearer YOUR_AUTH_TOKEN";
+            String apiUrl = "https://your-api-endpoint.com/stream";
+
+            String jsonBody = new JSONObject()
+                    .put("prompt", userInput)
+                    .put("category_type", "1")
+                    .put("session_id", "1")
+                    .put("mld_name", "1")
+                    .toString();
+
+            OkHttpClient client = new OkHttpClient.Builder().build();
+
+            RequestBody body = RequestBody.create(jsonBody, MediaType.parse("application/json"));
+
+            Request request = new Request.Builder()
+                    .url(apiUrl)
+                    .header("Authorization", token)
+                    .post(body)
+                    .build();
+
+            currentStreamingCall = client.newCall(request);
+
+            SwingUtilities.invokeLater(() -> stopButton.setVisible(true)); // 👀 show stop button
+
+            currentStreamingCall.enqueue(new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    if (call.isCanceled()) {
+                        System.out.println("Streaming request was cancelled.");
+                    } else {
+                        e.printStackTrace();
+                    }
+
+                    SwingUtilities.invokeLater(() -> stopButton.setVisible(false)); // Hide stop button
+                }
+
+                @Override
+                public void onResponse(Call call, Response response) throws IOException {
+                    if (!response.isSuccessful()) {
+                        System.err.println("Request failed: " + response.code());
+                        SwingUtilities.invokeLater(() -> stopButton.setVisible(false));
+                        return;
+                    }
+
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream()));
+                    boolean inCodeBlock = false;
+
+                    String currentText = responsePane.getText();
+                    if (currentText.startsWith("<html>") && currentText.contains("<body")) {
+                        int bodyStart = currentText.indexOf("<body");
+                        int bodyEnd = currentText.indexOf(">", bodyStart);
+                        int endIndex = currentText.lastIndexOf("</body>");
+                        if (bodyStart != -1 && bodyEnd != -1 && endIndex != -1) {
+                            currentText = currentText.substring(bodyEnd + 1, endIndex);
+                        }
+                    }
+
+                    StringBuilder newHtml = new StringBuilder();
+                    newHtml.append(
+                            "<div style='background:#1f2937;border:1px solid #3b82f6;border-radius:8px;padding:10px;margin-bottom:12px;font-family:\"Poppins\", \"Lato\", sans-serif;'>" +
+                                    "<div style='color:#60a5fa;font-weight:bold;margin-bottom:4px;'>User</div>" +
+                                    "<div style='color:#d4d4d4;'>" + userInput + "</div>" +
+                                    "</div>"
+                    );
+
+                    newHtml.append(
+                            "<div style='background:#2c2c2c;border:1px solid #3c3c3c;border-radius:8px;padding:12px;margin-bottom:12px;font-family:\"Poppins\", \"Lato\", sans-serif;'>" +
+                                    "<div style='color:#98c379;font-weight:bold;margin-bottom:6px;'>AI</div>" +
+                                    "<div style='color:#d4d4d4;'>"
+                    );
+
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        if (call.isCanceled()) break; // 👈 Cancel streaming mid-way
+
+                        String trimmed = line.trim();
+                        if (trimmed.startsWith("```")) {
+                            inCodeBlock = !inCodeBlock;
+                            if (inCodeBlock) {
+                                newHtml.append("<div style='background:#1e1e1e;border:1px solid #333;border-radius:6px;padding:10px;font-family:\"JetBrains Mono\", Consolas, \"Fira Code\", monospace;white-space:pre;color:#d4d4d4;margin:6px 0;'>");
+                            } else {
+                                newHtml.append("</div>");
+                            }
+                        } else {
+                            if (inCodeBlock) {
+                                newHtml.append(applyJavaHighlighting(trimmed)).append("<br/>");
+                            } else {
+                                newHtml.append(applyMarkdown(trimmed));
+                            }
+                        }
+
+                        String fullHtml =
+                                "<html><body style='font-family:\"Poppins\", \"Lato\", sans-serif;padding:8px;background:#1e1e1e; color:#d4d4d4;'>" +
+                                        currentText + newHtml +
+                                        "</div></div></body></html>";
+
+                        SwingUtilities.invokeLater(() -> {
+                            responsePane.setText(fullHtml);
+                            responsePane.setCaretPosition(responsePane.getDocument().getLength());
+                        });
+                    }
+
+                    SwingUtilities.invokeLater(() -> stopButton.setVisible(false)); // 👋 Done generating
+                }
+            });
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }).start();
+}
+
+
+
+ImageIcon stopGif = new ImageIcon(getClass().getResource("/icons/stop.gif"));
+JButton stopButton = new JButton(stopGif);
+stopButton.setToolTipText("Stop generating");
+stopButton.setVisible(false); // Initially hidden
+stopButton.setBorderPainted(false);
+stopButton.setContentAreaFilled(false);
+stopButton.setFocusPainted(false);
+stopButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+stopButton.addActionListener(e -> {
+    if (currentStreamingCall != null) {
+        currentStreamingCall.cancel();
+    }
+    stopButton.setVisible(false);
+});
