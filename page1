@@ -1,0 +1,218 @@
+package com.example.demo11;
+
+import com.intellij.openapi.project.Project;
+import com.intellij.openapi.ui.Messages;
+import com.intellij.openapi.wm.ToolWindow;
+import com.intellij.openapi.wm.ToolWindowFactory;
+import com.intellij.ui.components.JBTextField;
+import com.intellij.ui.content.Content;
+import com.intellij.ui.content.ContentFactory;
+import org.jetbrains.annotations.NotNull;
+
+import javax.swing.*;
+import java.awt.*;
+
+public class SidepanelFactory implements ToolWindowFactory {
+
+    @Override
+    public void createToolWindowContent(@NotNull Project project, @NotNull ToolWindow toolWindow) {
+        JPanel mainPanel = new JPanel(new BorderLayout());
+
+        // Input UI
+        JBTextField inputField = new JBTextField();
+        JButton sendButton = new JButton("Send");
+
+        JPanel inputPanel = new JPanel(new BorderLayout());
+        inputPanel.add(inputField, BorderLayout.CENTER);
+        inputPanel.add(sendButton, BorderLayout.EAST);
+
+        // Output area
+        JTextPane responsePane = new JTextPane();
+        responsePane.setContentType("text/html");
+        responsePane.setEditable(false);
+        responsePane.setText("<html><body style='font-family:sans-serif;'></body></html>");
+
+        JScrollPane scrollPane = new JScrollPane(responsePane);
+        scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
+
+        mainPanel.add(inputPanel, BorderLayout.NORTH);
+        mainPanel.add(scrollPane, BorderLayout.CENTER);
+
+        // IntelliJ content
+        ContentFactory contentFactory = ContentFactory.getInstance();
+        Content content = contentFactory.createContent(mainPanel, "", false);
+        toolWindow.getContentManager().addContent(content);
+
+        sendButton.addActionListener(e -> {
+            String userInput = inputField.getText().trim();
+            if (!userInput.isEmpty()) {
+                inputField.setText("");
+                simulateStreamingResponse(userInput, responsePane);
+            } else {
+                Messages.showInfoMessage(project, "Please enter a query.", "Input Required");
+            }
+        });
+    }
+
+    private void simulateStreamingResponse(String userInput, JTextPane responsePane) {
+        new Thread(() -> {
+            try {
+                String[] simulatedLines = {
+                        "# AI Response",
+                        "Here is an example of **Java code** you asked for:",
+                        "```java",
+                        "public class HelloWorld {",
+                        "    public static void main(String[] args) {",
+                        "        System.out.println(\"Hello, world!\");",
+                        "    }",
+                        "}",
+                        "```",
+                        "Let me know if you want *Python* or *JavaScript* versions.",
+                        "- Easy to use",
+                        "- Fast and clean",
+                        "## Thanks!"
+                };
+
+                StringBuilder html = new StringBuilder("<html><body style='font-family:sans-serif;'>");
+                boolean inCodeBlock = false;
+
+                html.append("<div style='margin-bottom:10px;'><b>User:</b> ").append(userInput).append("</div>");
+
+                for (String line : simulatedLines) {
+                    Thread.sleep(400); // Simulate streaming delay
+
+                    if (line.startsWith("```")) {
+                        inCodeBlock = !inCodeBlock;
+                        if (inCodeBlock) {
+                            html.append("<div style='background:#f5f5f5;border:1px solid #ccc;padding:8px;margin:6px 0;font-family:monospace;white-space:pre;'>");
+                        } else {
+                            html.append("</div>");
+                        }
+                    } else {
+                        if (inCodeBlock) {
+                            html.append(applyJavaHighlighting(line)).append("<br/>");
+                        } else {
+                            html.append(applyMarkdown(line));
+                        }
+                    }
+
+                    String finalHtml = html.toString() + "</body></html>";
+                    SwingUtilities.invokeLater(() -> {
+                        responsePane.setText(finalHtml);
+                        responsePane.setCaretPosition(responsePane.getDocument().getLength());
+                    });
+                }
+            } catch (InterruptedException ex) {
+                ex.printStackTrace();
+            }
+        }).start();
+    }
+
+    private String applyJavaHighlighting(String line) {
+        // Basic Java keyword highlighting
+        String[] keywords = {
+                "public", "class", "static", "void", "new", "int", "String", "if", "else", "return"
+        };
+
+        // Escape HTML
+        line = line.replace("<", "&lt;").replace(">", "&gt;");
+
+        // Highlight strings
+        line = line.replaceAll("\"(.*?)\"", "<span style='color:#a31515'>\"$1\"</span>");
+
+        // Highlight keywords
+        for (String keyword : keywords) {
+            line = line.replaceAll("\\b" + keyword + "\\b", "<span style='color:#0000ff;font-weight:bold;'>" + keyword + "</span>");
+        }
+
+        // Highlight comments
+        if (line.trim().startsWith("//")) {
+            line = "<span style='color:#008000;'>" + line + "</span>";
+        }
+
+        return line;
+    }
+
+    private String applyMarkdown(String line) {
+        line = line.replace("<", "&lt;").replace(">", "&gt;");
+
+        // Headings
+        if (line.startsWith("###")) {
+            return "<h3 style='margin:4px 0;'>" + line.substring(3).trim() + "</h3>";
+        } else if (line.startsWith("##")) {
+            return "<h2 style='margin:6px 0;'>" + line.substring(2).trim() + "</h2>";
+        } else if (line.startsWith("#")) {
+            return "<h1 style='margin:8px 0;'>" + line.substring(1).trim() + "</h1>";
+        }
+
+        // Bullet lists
+        if (line.trim().startsWith("- ")) {
+            return "<ul style='margin:4px 0;'><li>" + line.trim().substring(2) + "</li></ul>";
+        }
+
+        // Bold
+        line = line.replaceAll("\\*\\*(.*?)\\*\\*", "<strong>$1</strong>");
+
+        // Italic
+        line = line.replaceAll("\\*(.*?)\\*", "<em>$1</em>");
+
+        return "<div style='margin:2px 0;'>" + line + "</div>";
+    }
+}
+
+
+
+
+
+private void fetchStreamingResponse(String userInput, JTextPane responsePane) {
+    new Thread(() -> {
+        try {
+            String token = "Bearer YOUR_AUTH_TOKEN"; // 🔐 Replace with your real token
+
+            HttpClient client = HttpClient.newHttpClient();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://your-api-endpoint.com/stream")) // ✅ Replace with your actual endpoint
+                    .header("Content-Type", "application/json")
+                    .header("Authorization", token)
+                    .POST(HttpRequest.BodyPublishers.ofString("{\"query\": \"" + userInput + "\"}"))
+                    .build();
+
+            client.sendAsync(request, HttpResponse.BodyHandlers.ofLines())
+                    .thenAccept(response -> {
+                        StringBuilder html = new StringBuilder("<html><body style='font-family:sans-serif;'>");
+                        html.append("<div style='margin-bottom:10px;'><b>User:</b> ").append(userInput).append("</div>");
+
+                        boolean[] inCodeBlock = {false};
+
+                        response.body().forEach(line -> {
+                            if (line.startsWith("```")) {
+                                inCodeBlock[0] = !inCodeBlock[0];
+                                if (inCodeBlock[0]) {
+                                    html.append("<div style='background:#f5f5f5;border:1px solid #ccc;padding:8px;margin:6px 0;font-family:monospace;white-space:pre;'>");
+                                } else {
+                                    html.append("</div>");
+                                }
+                            } else {
+                                if (inCodeBlock[0]) {
+                                    html.append(applyJavaHighlighting(line)).append("<br/>");
+                                } else {
+                                    html.append(applyMarkdown(line));
+                                }
+                            }
+
+                            String finalHtml = html.toString() + "</body></html>";
+                            SwingUtilities.invokeLater(() -> {
+                                responsePane.setText(finalHtml);
+                                responsePane.setCaretPosition(responsePane.getDocument().getLength());
+                            });
+                        });
+                    }).exceptionally(ex -> {
+                        ex.printStackTrace();
+                        return null;
+                    });
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }).start();
+}
