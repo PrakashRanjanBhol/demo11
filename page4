@@ -227,3 +227,36 @@ public class SidepanelFactory implements ToolWindowFactory {
                 .replace(">", "&gt;");
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+private String renderCodeBlock(String code, String uid) {
+    return "<div style='position:relative;margin:10px 0;'>" +
+            "<img src='file:resources/copy.png' title='Copy' " +
+            "style='position:absolute;top:8px;right:8px;width:16px;height:16px;cursor:pointer;' " +
+            "onclick='copyCode(\"" + uid + "\")'/>" +
+            "<pre id='" + uid + "' style='" +
+            "background:#1e1e1e;" +
+            "border:1px solid #333;" +
+            "border-radius:6px;" +
+            "padding:12px;" +
+            "font-family:monospace;" +
+            "overflow-x:auto;" +
+            "max-width:100%;" +
+            "color:#d4d4d4;" +
+            "box-sizing:border-box;" +
+            "white-space:pre-wrap;" +  // 🛠 wrap long lines
+            "word-break:break-word;" +  // 🛠 break long words
+            "'>" + escape(code) + "</pre></div>";
+}
+
+
+if (finalLine.trim().startsWith("```")) {
