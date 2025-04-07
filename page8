@@ -150,3 +150,132 @@ private String parseMarkdownLine(String line) {
     if (parsed.startsWith("- ")) return "• " + parsed.substring(2);
     return parsed;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+private void simulateStreamingResponse(String userInput, JPanel responseContainer) {
+    JLabel userLabel = new JLabel("<html><body style='font-family:Poppins,sans-serif; color:#66ccff;'>You: " + userInput + "</body></html>");
+    userLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+    responseContainer.add(userLabel);
+
+    JPanel aiResponsePanel = new JPanel();
+    aiResponsePanel.setLayout(new BoxLayout(aiResponsePanel, BoxLayout.Y_AXIS));
+    aiResponsePanel.setBackground(new Color(40, 40, 40));
+    aiResponsePanel.setBorder(new EmptyBorder(8, 8, 8, 8));
+    aiResponsePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+    responseContainer.add(Box.createVerticalStrut(10));
+    responseContainer.add(aiResponsePanel);
+    responseContainer.revalidate();
+
+    String token = "Bearer YOUR_AUTH_TOKEN"; // 🔐 Replace with your real token
+    String apiUrl = "https://your-api-endpoint.com/stream"; // ✅ Replace with your actual endpoint
+
+    String jsonBody = new JSONObject()
+            .put("prompt", userInput)
+            .put("category_type", "1")
+            .put("session_id", "1")
+            .put("mld_name", "1")
+            .toString();
+
+    OkHttpClient client = new OkHttpClient();
+
+    RequestBody body = RequestBody.create(jsonBody, MediaType.parse("application/json"));
+
+    Request request = new Request.Builder()
+            .url(apiUrl)
+            .header("Authorization", token)
+            .post(body)
+            .build();
+
+    client.newCall(request).enqueue(new Callback() {
+        @Override
+        public void onFailure(Call call, IOException e) {
+            e.printStackTrace();
+        }
+
+        @Override
+        public void onResponse(Call call, Response response) {
+            if (!response.isSuccessful()) {
+                System.err.println("Unsuccessful response: " + response);
+                return;
+            }
+
+            List<Object> renderQueue = new ArrayList<>();
+            boolean inCodeBlock = false;
+            StringBuilder codeBuilder = new StringBuilder();
+
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    Thread.sleep(30); // simulate streaming
+
+                    if (line.trim().startsWith("```")) {
+                        if (inCodeBlock) {
+                            renderQueue.add(new CodeBlock(codeBuilder.toString()));
+                            codeBuilder.setLength(0);
+                            inCodeBlock = false;
+                        } else {
+                            inCodeBlock = true;
+                        }
+                    } else if (inCodeBlock) {
+                        codeBuilder.append(line).append("\n");
+                    } else {
+                        renderQueue.add(line);
+                    }
+                }
+
+                SwingUtilities.invokeLater(() -> {
+                    JEditorPane htmlPane = createHtmlPane();
+                    StringBuilder htmlBuilder = new StringBuilder("<html><body style='font-family:Poppins,sans-serif; color:#dddddd;'>");
+
+                    for (Object item : renderQueue) {
+                        if (item instanceof String) {
+                            htmlBuilder.append(parseMarkdownLine((String) item)).append("<br>");
+                        } else if (item instanceof CodeBlock) {
+                            htmlPane.setText(htmlBuilder.toString() + "</body></html>");
+                            htmlPane.setCaretPosition(htmlPane.getDocument().getLength());
+                            if (htmlPane.getParent() == null) {
+                                aiResponsePanel.add(htmlPane);
+                            }
+
+                            CodeBlock block = (CodeBlock) item;
+                            JPanel codePanel = createCodePanel(block.code);
+                            aiResponsePanel.add(Box.createVerticalStrut(8));
+                            aiResponsePanel.add(codePanel);
+
+                            htmlBuilder = new StringBuilder("<html><body style='font-family:Poppins,sans-serif; color:#dddddd;'>");
+                            htmlPane = createHtmlPane();
+                        }
+                    }
+
+                    if (!htmlBuilder.toString().isEmpty()) {
+                        htmlPane.setText(htmlBuilder.toString() + "</body></html>");
+                        aiResponsePanel.add(htmlPane);
+                    }
+
+                    aiResponsePanel.revalidate();
+                    aiResponsePanel.repaint();
+                });
+
+            } catch (IOException | InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    });
+}
