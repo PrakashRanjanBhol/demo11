@@ -186,3 +186,18 @@ public class SidepanelFactory implements ToolWindowFactory {
         return "<div style='margin:2px 0;'>" + line + "</div>";
     }
 }
+
+
+
+
+
+
+StringBuilder html = new StringBuilder(
+    "<html><body style='font-family:\"Poppins\", \"Lato\", sans-serif;"
+    + "color:#dcdcdc;background-color:#1e1e1e;margin:0;padding:10px;'>"
+);
+
+
+html.append("<div style='background:#2d2d2d;border:1px solid #444;"
+                                    + "padding:8px;margin:6px 0;font-family:\"JetBrains Mono\", Consolas, \"Fira Code\", monospace;"
+                                    + "white-space:pre;color:#d4d4d4;border-radius:6px;'>");
