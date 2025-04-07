@@ -216,3 +216,86 @@ private void fetchStreamingResponse(String userInput, JTextPane responsePane) {
         }
     }).start();
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+private void fetchStreamingResponse(String prompt, JTextPane responsePane) {
+    new Thread(() -> {
+        try {
+            String token = "Bearer YOUR_AUTH_TOKEN"; // 🔐 Replace with your real token
+
+            // Sample values for other fields (replace or pass them in as needed)
+            String categoryType = "example_category";
+            String sessionId = "session_123";
+            String mldName = "your_model_name";
+
+            // Create JSON body
+            String jsonBody = String.format("""
+                {
+                    "prompt": "%s",
+                    "category_type": "%s",
+                    "session_id": "%s",
+                    "mld_name": "%s"
+                }
+                """, escapeJson(prompt), categoryType, sessionId, mldName);
+
+            HttpClient client = HttpClient.newHttpClient();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://your-api-endpoint.com/stream")) // Replace with your endpoint
+                    .header("Content-Type", "application/json")
+                    .header("Authorization", token)
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+                    .build();
+
+            client.sendAsync(request, HttpResponse.BodyHandlers.ofLines())
+                    .thenAccept(response -> {
+                        StringBuilder html = new StringBuilder("<html><body style='font-family:sans-serif;'>");
+                        html.append("<div style='margin-bottom:10px;'><b>User:</b> ").append(prompt).append("</div>");
+
+                        boolean[] inCodeBlock = {false};
+
+                        response.body().forEach(line -> {
+                            if (line.startsWith("```")) {
+                                inCodeBlock[0] = !inCodeBlock[0];
+                                html.append(inCodeBlock[0]
+                                        ? "<div style='background:#f5f5f5;border:1px solid #ccc;padding:8px;margin:6px 0;font-family:monospace;white-space:pre;'>"
+                                        : "</div>");
+                            } else {
+                                html.append(inCodeBlock[0] ? applyJavaHighlighting(line) + "<br/>" : applyMarkdown(line));
+                            }
+
+                            String finalHtml = html.toString() + "</body></html>";
+                            SwingUtilities.invokeLater(() -> {
+                                responsePane.setText(finalHtml);
+                                responsePane.setCaretPosition(responsePane.getDocument().getLength());
+                            });
+                        });
+                    }).exceptionally(ex -> {
+                        ex.printStackTrace();
+                        return null;
+                    });
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }).start();
+}
+
+
+private String escapeJson(String input) {
+    return input.replace("\"", "\\\"");
+}
