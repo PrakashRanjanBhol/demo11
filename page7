@@ -1,0 +1,299 @@
+package com.example.demo11;
+
+import com.intellij.openapi.project.Project;
+import com.intellij.openapi.ui.Messages;
+import com.intellij.openapi.wm.ToolWindow;
+import com.intellij.openapi.wm.ToolWindowFactory;
+import com.intellij.ui.components.JBTextField;
+import com.intellij.ui.content.Content;
+import com.intellij.ui.content.ContentFactory;
+import org.jetbrains.annotations.NotNull;
+
+import javax.swing.*;
+import javax.swing.border.EmptyBorder;
+import java.awt.*;
+import java.awt.datatransfer.StringSelection;
+import java.awt.datatransfer.Clipboard;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+
+public class SidepanelFactory implements ToolWindowFactory {
+
+    @Override
+    public void createToolWindowContent(@NotNull Project project, @NotNull ToolWindow toolWindow) {
+        JPanel mainPanel = new JPanel(new BorderLayout());
+
+        // Header
+        JPanel headerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        headerPanel.setPreferredSize(new Dimension(0, 30));
+        headerPanel.setBackground(new Color(30, 30, 30));
+
+        JLabel titleLabel = new JLabel("AI Assistant");
+        titleLabel.setFont(new Font("Poppins", Font.BOLD, 16));
+        titleLabel.setForeground(Color.WHITE);
+        headerPanel.add(titleLabel);
+
+        // Response container
+        JPanel responseContainer = new JPanel();
+        responseContainer.setLayout(new BoxLayout(responseContainer, BoxLayout.Y_AXIS));
+        responseContainer.setBackground(new Color(30, 30, 30));
+
+        JScrollPane scrollPane = new JScrollPane(responseContainer);
+        scrollPane.setBorder(null);
+        scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
+
+        // Footer
+        JBTextField inputField = new JBTextField();
+        inputField.setFont(new Font("Poppins", Font.PLAIN, 14));
+        inputField.setPreferredSize(new Dimension(0, 40));
+        inputField.setMargin(new Insets(8, 8, 8, 8));
+
+        JButton sendButton = new JButton("Send");
+        sendButton.setFont(new Font("Poppins", Font.BOLD, 14));
+        sendButton.setPreferredSize(new Dimension(80, 40));
+
+        JPanel footerPanel = new JPanel(new BorderLayout(5, 0));
+        footerPanel.setPreferredSize(new Dimension(0, 50));
+        footerPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        footerPanel.add(inputField, BorderLayout.CENTER);
+        footerPanel.add(sendButton, BorderLayout.EAST);
+
+        // Assemble layout
+        mainPanel.add(headerPanel, BorderLayout.NORTH);
+        mainPanel.add(scrollPane, BorderLayout.CENTER);
+        mainPanel.add(footerPanel, BorderLayout.SOUTH);
+
+        ContentFactory contentFactory = ContentFactory.getInstance();
+        Content content = contentFactory.createContent(mainPanel, "", false);
+        toolWindow.getContentManager().addContent(content);
+
+        sendButton.addActionListener(e -> {
+            String userInput = inputField.getText().trim();
+            if (!userInput.isEmpty()) {
+                inputField.setText("");
+                simulateStreamingResponse(userInput, responseContainer);
+            } else {
+                Messages.showInfoMessage(project, "Please enter a query.", "Input Required");
+            }
+        });
+    }
+
+    private void simulateStreamingResponse(String userInput, JPanel responseContainer) {
+        JLabel userLabel = new JLabel("<html><body style='font-family:Poppins,sans-serif; color:#66ccff;'>You: " + userInput + "</body></html>");
+        userLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        responseContainer.add(userLabel);
+
+        JPanel aiResponsePanel = new JPanel();
+        aiResponsePanel.setLayout(new BoxLayout(aiResponsePanel, BoxLayout.Y_AXIS));
+        aiResponsePanel.setBackground(new Color(40, 40, 40));
+        aiResponsePanel.setBorder(new EmptyBorder(8, 8, 8, 8));
+        aiResponsePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        responseContainer.add(Box.createVerticalStrut(10));
+        responseContainer.add(aiResponsePanel);
+        responseContainer.revalidate();
+
+        String[] simulatedLines = {
+                "# AI Response",
+                "Here is an example of **Java code** you asked for:",
+                "```java",
+                "public class HelloWorld {",
+                "    public static void main(String[] args) {",
+                "        System.out.println(\"Hello, world!\");",
+                "    }",
+                "}",
+                "```",
+                "Let me know if you want *Python* or *JavaScript* versions.",
+                "- Easy to use",
+                "- Fast and efficient"
+        };
+
+        new Thread(() -> {
+            boolean inCodeBlock = false;
+            StringBuilder codeBuilder = new StringBuilder();
+            JEditorPane htmlPane = createHtmlPane();
+            StringBuilder htmlBuilder = new StringBuilder("<html><body style='font-family:Poppins,sans-serif; color:#dddddd;'>");
+
+            for (String line : simulatedLines) {
+                String currentLine = line;
+
+                try {
+                    Thread.sleep(300); // Simulate delay per line
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+
+                if (currentLine.startsWith("```")) {
+                    if (inCodeBlock) {
+                        // End code block
+                        String finalCode = codeBuilder.toString();
+                        codeBuilder.setLength(0);
+                        inCodeBlock = false;
+
+                        SwingUtilities.invokeLater(() -> {
+                            JPanel codePanel = new JPanel(new BorderLayout());
+                            codePanel.setBackground(new Color(50, 50, 50));
+                            codePanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+
+                            JTextArea codeArea = new JTextArea(finalCode);
+                            codeArea.setFont(new Font("JetBrains Mono", Font.PLAIN, 13));
+                            codeArea.setEditable(false);
+                            codeArea.setBackground(new Color(50, 50, 50));
+                            codeArea.setForeground(Color.WHITE);
+                            codeArea.setBorder(null);
+
+                            JButton copyButton = new JButton("📋");
+                            copyButton.setFont(new Font("Poppins", Font.PLAIN, 12));
+                            copyButton.setToolTipText("Copy code");
+                            copyButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+                            copyButton.setFocusPainted(false);
+                            copyButton.setContentAreaFilled(false);
+                            copyButton.setForeground(Color.LIGHT_GRAY);
+                            copyButton.setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
+
+                            copyButton.addActionListener(e -> {
+                                Toolkit.getDefaultToolkit().getSystemClipboard().setContents(
+                                        new StringSelection(finalCode), null);
+                            });
+
+                            JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+                            topPanel.setOpaque(false);
+                            topPanel.add(copyButton);
+
+                            codePanel.add(topPanel, BorderLayout.NORTH);
+                            codePanel.add(new JScrollPane(codeArea), BorderLayout.CENTER);
+
+                            aiResponsePanel.add(Box.createVerticalStrut(8));
+                            aiResponsePanel.add(codePanel);
+                            aiResponsePanel.revalidate();
+                            aiResponsePanel.repaint();
+                        });
+                    } else {
+                        inCodeBlock = true;
+                    }
+                } else if (inCodeBlock) {
+                    codeBuilder.append(currentLine).append("\n");
+                } else {
+                    htmlBuilder.append(parseMarkdownLine(currentLine)).append("<br>");
+                    String htmlContent = htmlBuilder.toString() + "</body></html>";
+
+                    SwingUtilities.invokeLater(() -> {
+                        htmlPane.setText(htmlContent);
+                        htmlPane.setCaretPosition(htmlPane.getDocument().getLength());
+                        if (htmlPane.getParent() == null) {
+                            aiResponsePanel.add(htmlPane);
+                            aiResponsePanel.revalidate();
+                            aiResponsePanel.repaint();
+                        }
+                    });
+                }
+            }
+        }).start();
+    }
+
+
+    private JEditorPane createHtmlPane() {
+        JEditorPane editorPane = new JEditorPane();
+        editorPane.setContentType("text/html");
+        editorPane.setEditable(false);
+        editorPane.setOpaque(false);
+        editorPane.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, Boolean.TRUE);
+        return editorPane;
+    }
+
+    private String parseMarkdownLine(String line) {
+        // Simple Markdown -> HTML conversion
+        line = line.replaceAll("(?<!\\*)\\*\\*(.*?)\\*\\*", "<b>$1</b>");
+        line = line.replaceAll("(?<!\\*)\\*(.*?)\\*", "<i>$1</i>");
+        line = line.replaceAll("^# (.*)", "<h3>$1</h3>");
+        line = line.replaceAll("^- (.*)", "• $1");
+        return line;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+private void fetchStreamingResponse(String userInput, JEditorPane responsePane) {
+    new Thread(() -> {
+        try {
+            String token = "Bearer YOUR_AUTH_TOKEN"; // Replace this with your real token
+            String apiUrl = "https://your-api-endpoint.com/stream"; // Replace with real endpoint
+
+            String jsonBody = new JSONObject()
+                    .put("prompt", userInput)
+                    .put("category_type", "1")
+                    .put("session_id", "1")
+                    .put("mld_name", "1")
+                    .toString();
+
+            OkHttpClient client = new OkHttpClient();
+            RequestBody body = RequestBody.create(jsonBody, MediaType.parse("application/json"));
+
+            Request request = new Request.Builder()
+                    .url(apiUrl)
+                    .header("Authorization", token)
+                    .post(body)
+                    .build();
+
+            client.newCall(request).enqueue(new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    e.printStackTrace();
+                }
+
+                @Override
+                public void onResponse(Call call, Response response) throws IOException {
+                    if (!response.isSuccessful()) {
+                        System.err.println("Request failed: " + response.code());
+                        return;
+                    }
+
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream()));
+                    StringBuilder html = new StringBuilder("<html><body style='font-family:Poppins,sans-serif; color:#dddddd;'>");
+                    AtomicBoolean inCodeBlock = new AtomicBoolean(false);
+                    StringBuilder codeBuffer = new StringBuilder();
+
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        String finalLine = line;
+
+                        SwingUtilities.invokeLater(() -> {
+                            if (finalLine.startsWith("```")) {
+                                inCodeBlock.set(!inCodeBlock.get());
+                                if (!inCodeBlock.get()) {
+                                    html.append("<div style='background:#1e1e1e;color:#ffffff;padding:8px;border-radius:6px;margin:8px 0;font-family:JetBrains Mono,monospace;'>")
+                                        .append(codeBuffer)
+                                        .append("</div>");
+                                    codeBuffer.setLength(0);
+                                }
+                            } else if (inCodeBlock.get()) {
+                                codeBuffer.append(finalLine).append("<br>");
+                            } else {
+                                html.append(finalLine).append("<br>");
+                            }
+
+                            responsePane.setText(html + "</body></html>");
+                            responsePane.setCaretPosition(responsePane.getDocument().getLength());
+                        });
+
+                        try {
+                            Thread.sleep(30); // Simulate streaming
+                        } catch (InterruptedException ex) {
+                            Thread.currentThread().interrupt();
+                        }
+                    }
+                }
+            });
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }).start();
+}
