@@ -1,0 +1,252 @@
+package com.example.demo11;
+
+import com.intellij.openapi.project.Project;
+import com.intellij.openapi.ui.Messages;
+import com.intellij.openapi.wm.ToolWindow;
+import com.intellij.openapi.wm.ToolWindowFactory;
+import com.intellij.ui.components.JBTextField;
+import com.intellij.ui.content.Content;
+import com.intellij.ui.content.ContentFactory;
+import okhttp3.*;
+import org.jetbrains.annotations.NotNull;
+
+import javax.swing.*;
+import javax.swing.event.HyperlinkEvent;
+import java.awt.*;
+import java.awt.datatransfer.StringSelection;
+import java.awt.datatransfer.Clipboard;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.URL;
+import java.util.UUID;
+
+public class SidepanelFactory implements ToolWindowFactory {
+
+    private StringBuilder fullContent = new StringBuilder();
+
+    @Override
+    public void createToolWindowContent(@NotNull Project project, @NotNull ToolWindow toolWindow) {
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        mainPanel.setBackground(new Color(30, 30, 30));
+
+        // Header
+        JPanel headerPanel = new JPanel();
+        headerPanel.setPreferredSize(new Dimension(0, 40));
+        headerPanel.setBackground(new Color(45, 45, 45));
+        JLabel titleLabel = new JLabel("AI Assistant");
+        titleLabel.setForeground(Color.WHITE);
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
+        headerPanel.add(titleLabel);
+
+        // Response Pane
+        JEditorPane responsePane = new JEditorPane();
+        responsePane.setContentType("text/html");
+        responsePane.setEditable(false);
+        responsePane.setOpaque(false);
+        responsePane.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, Boolean.TRUE);
+        responsePane.setText(wrapHTML(fullContent.toString()));
+
+        responsePane.addHyperlinkListener(e -> {
+            if (e.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
+                if (e.getDescription().startsWith("copy:")) {
+                    String code = e.getDescription().substring(5);
+                    StringSelection selection = new StringSelection(code);
+                    Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+                    clipboard.setContents(selection, selection);
+                }
+            }
+        });
+
+        JScrollPane scrollPane = new JScrollPane(responsePane);
+        scrollPane.setBorder(null);
+        scrollPane.getViewport().setOpaque(false);
+        scrollPane.setOpaque(false);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+
+        // Input
+        JBTextField inputField = new JBTextField();
+        inputField.setPreferredSize(new Dimension(200, 36));
+        JButton sendButton = new JButton("Send");
+        sendButton.setPreferredSize(new Dimension(80, 36));
+        sendButton.setBackground(new Color(75, 110, 175));
+        sendButton.setForeground(Color.WHITE);
+
+        JPanel inputPanel = new JPanel(new BorderLayout());
+        inputPanel.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
+        inputPanel.setBackground(new Color(30, 30, 30));
+        inputPanel.add(inputField, BorderLayout.CENTER);
+        inputPanel.add(sendButton, BorderLayout.EAST);
+
+        // Compose
+        mainPanel.add(headerPanel, BorderLayout.NORTH);
+        mainPanel.add(scrollPane, BorderLayout.CENTER);
+        mainPanel.add(inputPanel, BorderLayout.SOUTH);
+
+        // Final content
+        Content content = ContentFactory.getInstance().createContent(mainPanel, "", false);
+        toolWindow.getContentManager().addContent(content);
+
+        sendButton.addActionListener(e -> {
+            String userInput = inputField.getText().trim();
+            if (!userInput.isEmpty()) {
+                inputField.setText("");
+                fetchStreamingResponse(userInput, (JTextPane) responsePane);
+            } else {
+                Messages.showInfoMessage(project, "Please enter a query.", "Input Required");
+            }
+        });
+
+        inputField.addActionListener(e -> sendButton.doClick());
+    }
+
+    private void fetchStreamingResponse(String userInput, JTextPane responsePane) {
+        new Thread(() -> {
+            try {
+                String token = "Bearer YOUR_AUTH_TOKEN";
+                String apiUrl = "https://your-api-endpoint.com/stream";
+
+                String jsonBody = new JSONObject()
+                        .put("prompt", userInput)
+                        .put("category_type", "1")
+                        .put("session_id", "1")
+                        .put("mld_name", "1")
+                        .toString();
+
+                OkHttpClient client = new OkHttpClient();
+                RequestBody body = RequestBody.create(jsonBody, MediaType.parse("application/json"));
+                Request request = new Request.Builder()
+                        .url(apiUrl)
+                        .header("Authorization", token)
+                        .post(body)
+                        .build();
+
+                // Extract existing HTML
+                String existingHtml = responsePane.getText();
+                if (existingHtml.startsWith("<html>") && existingHtml.contains("<body")) {
+                    int bodyStart = existingHtml.indexOf("<body");
+                    int bodyEnd = existingHtml.indexOf(">", bodyStart);
+                    int endIndex = existingHtml.lastIndexOf("</body>");
+                    if (bodyStart != -1 && bodyEnd != -1 && endIndex != -1) {
+                        existingHtml = existingHtml.substring(bodyEnd + 1, endIndex);
+                    }
+                }
+
+                StringBuilder newHtml = new StringBuilder();
+
+                newHtml.append(
+                        "<div style='background:#1f2937;border:1px solid #3b82f6;border-radius:8px;padding:10px;margin-bottom:12px;'>" +
+                                "<div style='color:#60a5fa;font-weight:bold;margin-bottom:4px;'>User</div>" +
+                                "<div style='color:#d4d4d4;'>" + escape(userInput) + "</div>" +
+                                "</div>" +
+                                "<div style='background:#2c2c2c;border:1px solid #3c3c3c;border-radius:8px;padding:12px;margin-bottom:12px;'>" +
+                                "<div style='color:#98c379;font-weight:bold;margin-bottom:6px;'>AI</div>"
+                );
+
+                StringBuilder currentCodeBlock = new StringBuilder();
+                boolean[] inCodeBlock = {false};
+                int[] codeBlockCounter = {0};
+
+                String finalExistingHtml = existingHtml;
+                client.newCall(request).enqueue(new Callback() {
+                    @Override
+                    public void onFailure(Call call, IOException e) {
+                        e.printStackTrace();
+                    }
+
+                    @Override
+                    public void onResponse(Call call, Response response) throws IOException {
+                        if (!response.isSuccessful()) {
+                            System.err.println("Request failed: " + response.code());
+                            return;
+                        }
+
+                        BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream()));
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            String finalLine = line;
+
+                            if (finalLine.startsWith("```")) {
+                                inCodeBlock[0] = !inCodeBlock[0];
+
+                                if (!inCodeBlock[0]) {
+                                    // Close code block and render
+                                    String uid = "code" + (++codeBlockCounter[0]);
+                                    newHtml.append(renderCodeBlock(currentCodeBlock.toString(), uid));
+                                    currentCodeBlock.setLength(0);
+                                }
+
+                            } else {
+                                if (inCodeBlock[0]) {
+                                    currentCodeBlock.append(finalLine).append("\n");
+                                } else {
+                                    newHtml.append("<div style='color:#d4d4d4;margin-bottom:6px;'>")
+                                            .append(applyMarkdown(finalLine))
+                                            .append("</div>");
+                                }
+                            }
+
+                            String fullHtml = "<html><body style='font-family:sans-serif;padding:8px;background:#1e1e1e; color:#d4d4d4;'>" +
+                                    finalExistingHtml + newHtml + "</div></body></html>";
+
+                            SwingUtilities.invokeLater(() -> {
+                                responsePane.setText(fullHtml);
+                                responsePane.setCaretPosition(responsePane.getDocument().getLength());
+                            });
+                        }
+                    }
+                });
+
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }).start();
+    }
+
+    private String applyMarkdown(String line) {
+        return escape(line).replace("**", "<b>").replace("__", "<i>"); // You can enhance this
+    }
+
+    private String renderMarkdown(String line) {
+        line = escape(line);
+        if (line.startsWith("# ")) return "<h1 style='margin:4px 0;'>" + line.substring(2) + "</h1>";
+        if (line.startsWith("## ")) return "<h2 style='margin:4px 0;'>" + line.substring(3) + "</h2>";
+        if (line.startsWith("### ")) return "<h3 style='margin:4px 0;'>" + line.substring(4) + "</h3>";
+        line = line.replaceAll("\\*\\*(.*?)\\*\\*", "<strong>$1</strong>");
+        line = line.replaceAll("\\*(.*?)\\*", "<em>$1</em>");
+        return "<div style='margin:2px 0;'>" + line + "</div>";
+    }
+
+    private String renderCodeBlock(String code, String uid) {
+        String copyHref = "copy:" + escape(code);
+        URL copyIconUrl = getClass().getResource("/icons/copy.png");
+
+        // Basic Java syntax highlighting
+        String highlighted = escape(code)
+                .replaceAll("\\b(public|private|protected|static|void|class|new|return|if|else|for|while|switch|case|break|continue|this|import|package|final|try|catch|throw|throws)\\b", "<span style='color:#569CD6;'>$1</span>")
+                .replaceAll("\\b(int|double|float|boolean|char|String|long|short|byte)\\b", "<span style='color:#4EC9B0;'>$1</span>")
+                .replaceAll("(\"[^\"]*\")", "<span style='color:#CE9178;'>$1</span>")
+                .replaceAll("(//.*?$)", "<span style='color:#6A9955;'>$1</span>")
+                .replaceAll("(?m)(/\\*.*?\\*/)", "<span style='color:#6A9955;'>$1</span>");
+
+        return "<div style='position:relative;background:#1e1e1e;border:1px solid #333;border-radius:6px;padding:10px 10px 10px 10px;margin-top:8px;'>" +
+                "<a href='" + copyHref + "' " +
+                "style='position:absolute;top:8px;right:8px;cursor:pointer;'>" +
+                "<img src='" + copyIconUrl + "' width='16' height='16' style='display:block;'/>" +
+                "</a>" +
+                "<pre style='margin:0;font-family:monospace;font-size:13px;color:#d4d4d4;white-space:pre-wrap;'>" +
+                highlighted +
+                "</pre></div>";
+    }
+
+    private String wrapHTML(String content) {
+        return "<html><body style='font-family:sans-serif;padding:8px;background:#1e1e1e; color:#d4d4d4;'>" +
+                content + "</body></html>";
+    }
+
+    private String escape(String text) {
+        return text.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;");
+    }
+}
