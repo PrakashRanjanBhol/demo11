@@ -394,3 +394,37 @@ private void fetchStreamingResponse(String prompt, String categoryType, String s
         }
     }).start();
 }
+
+
+
+
+
+
+
+
+HttpClient client = HttpClient.newHttpClient();
+
+String token = "your_token_here";
+String jsonBody = """
+{
+  "prompt": "Hello",
+  "category_type": "default",
+  "session_id": "abc123",
+  "mld_name": "model-name"
+}
+""";
+
+HttpRequest request = HttpRequest.newBuilder()
+        .uri(URI.create("https://your-api.com/stream-endpoint"))
+        .header("Content-Type", "application/json")
+        .header("Authorization", "Bearer " + token)
+        .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+        .build();
+
+client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+      .thenAccept(response -> {
+          System.out.println("Status: " + response.statusCode());
+          System.out.println("Headers: " + response.headers());
+          System.out.println("Response body:\n" + response.body());
+      })
+      .join();
