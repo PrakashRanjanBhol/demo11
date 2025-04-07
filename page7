@@ -297,3 +297,172 @@ private void fetchStreamingResponse(String userInput, JEditorPane responsePane) 
         }
     }).start();
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+private void fetchStreamingResponse(String userInput, JPanel responseContainer) {
+    JLabel userLabel = new JLabel("<html><body style='font-family:Poppins,sans-serif; color:#66ccff;'>You: " + userInput + "</body></html>");
+    userLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+    responseContainer.add(userLabel);
+
+    JPanel aiResponsePanel = new JPanel();
+    aiResponsePanel.setLayout(new BoxLayout(aiResponsePanel, BoxLayout.Y_AXIS));
+    aiResponsePanel.setBackground(new Color(40, 40, 40));
+    aiResponsePanel.setBorder(new EmptyBorder(8, 8, 8, 8));
+    aiResponsePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+    responseContainer.add(Box.createVerticalStrut(10));
+    responseContainer.add(aiResponsePanel);
+    responseContainer.revalidate();
+
+    new Thread(() -> {
+        boolean[] inCodeBlock = {false};
+        StringBuilder codeBuilder = new StringBuilder();
+        JEditorPane htmlPane = createHtmlPane();
+        StringBuilder htmlBuilder = new StringBuilder("<html><body style='font-family:Poppins,sans-serif; color:#dddddd;'>");
+
+        try {
+            String token = "Bearer YOUR_AUTH_TOKEN"; // 🔐 Replace with your real token
+            String apiUrl = "https://your-api-endpoint.com/stream"; // ✅ Replace with your actual endpoint
+
+            String jsonBody = new JSONObject()
+                    .put("prompt", userInput)
+                    .put("category_type", "1")
+                    .put("session_id", "1")
+                    .put("mld_name", "1")
+                    .toString();
+
+            OkHttpClient client = new OkHttpClient();
+
+            RequestBody body = RequestBody.create(jsonBody, MediaType.parse("application/json"));
+
+            Request request = new Request.Builder()
+                    .url(apiUrl)
+                    .header("Authorization", token)
+                    .post(body)
+                    .build();
+
+            client.newCall(request).enqueue(new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    e.printStackTrace();
+                }
+
+                @Override
+                public void onResponse(Call call, Response response) {
+                    if (!response.isSuccessful()) {
+                        System.err.println("Request failed: " + response.code());
+                        return;
+                    }
+
+                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream()))) {
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            String currentLine = line;
+
+                            SwingUtilities.invokeLater(() -> {
+                                if (currentLine.trim().startsWith("```")) {
+                                    inCodeBlock[0] = !inCodeBlock[0];
+                                    if (!inCodeBlock[0]) {
+                                        // End of code block
+                                        String finalCode = codeBuilder.toString();
+                                        codeBuilder.setLength(0);
+
+                                        JPanel codePanel = new JPanel(new BorderLayout());
+                                        codePanel.setBackground(new Color(50, 50, 50));
+                                        codePanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+
+                                        JTextArea codeArea = new JTextArea(finalCode);
+                                        codeArea.setFont(new Font("JetBrains Mono", Font.PLAIN, 13));
+                                        codeArea.setEditable(false);
+                                        codeArea.setBackground(new Color(50, 50, 50));
+                                        codeArea.setForeground(Color.WHITE);
+                                        codeArea.setBorder(null);
+
+                                        JButton copyButton = new JButton("📋");
+                                        copyButton.setFont(new Font("Poppins", Font.PLAIN, 12));
+                                        copyButton.setToolTipText("Copy code");
+                                        copyButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+                                        copyButton.setFocusPainted(false);
+                                        copyButton.setContentAreaFilled(false);
+                                        copyButton.setForeground(Color.LIGHT_GRAY);
+                                        copyButton.setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
+
+                                        copyButton.addActionListener(e -> {
+                                            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(
+                                                    new StringSelection(finalCode), null);
+                                        });
+
+                                        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+                                        topPanel.setOpaque(false);
+                                        topPanel.add(copyButton);
+
+                                        codePanel.add(topPanel, BorderLayout.NORTH);
+                                        codePanel.add(new JScrollPane(codeArea), BorderLayout.CENTER);
+
+                                        aiResponsePanel.add(Box.createVerticalStrut(8));
+                                        aiResponsePanel.add(codePanel);
+                                        aiResponsePanel.revalidate();
+                                        aiResponsePanel.repaint();
+                                    }
+                                } else if (inCodeBlock[0]) {
+                                    codeBuilder.append(currentLine).append("\n");
+                                } else {
+                                    htmlBuilder.append(parseMarkdownLine(currentLine)).append("<br>");
+                                    String htmlContent = htmlBuilder.toString() + "</body></html>";
+
+                                    htmlPane.setText(htmlContent);
+                                    htmlPane.setCaretPosition(htmlPane.getDocument().getLength());
+                                    if (htmlPane.getParent() == null) {
+                                        aiResponsePanel.add(htmlPane);
+                                        aiResponsePanel.revalidate();
+                                        aiResponsePanel.repaint();
+                                    }
+                                }
+                            });
+
+                            Thread.sleep(30); // Simulate slight delay for streaming feel
+                        }
+                    } catch (IOException | InterruptedException ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            });
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }).start();
+}
+private JEditorPane createHtmlPane() {
+    JEditorPane pane = new JEditorPane();
+    pane.setContentType("text/html");
+    pane.setEditable(false);
+    pane.setOpaque(false);
+    pane.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, true);
+    pane.setFont(new Font("Poppins", Font.PLAIN, 14));
+    return pane;
+}
+
+private String parseMarkdownLine(String line) {
+    // Replace markdown with basic HTML tags
+    return line.replaceAll("(?<!\\*)\\*\\*(.*?)\\*\\*(?!\\*)", "<b>$1</b>")
+               .replaceAll("\\*(.*?)\\*", "<i>$1</i>")
+               .replaceAll("^# (.*?)$", "<h3>$1</h3>")
+               .replaceAll("^- (.*?)$", "• $1");
+}
