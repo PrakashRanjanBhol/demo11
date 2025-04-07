@@ -302,3 +302,19 @@ private void simulateStreamingResponse(String userInput, JTextPane responsePane,
         Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
         clipboard.setContents(stringSelection, null);
     }
+
+
+
+
+
+
+
+
+
+
+
+// Add copy icon just above the code block
+                        newHtml.append("<div style='text-align:right;'>")
+                                .append("<img src='").append(getClass().getResource("/icons/copy_icon.png")).toString())
+                                .append("' style='cursor:pointer;' title='Copy Code'/>")
+                                .append("</div>");
