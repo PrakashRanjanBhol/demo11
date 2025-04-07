@@ -7,7 +7,6 @@ import com.intellij.openapi.wm.ToolWindowFactory;
 import com.intellij.ui.components.JBTextField;
 import com.intellij.ui.content.Content;
 import com.intellij.ui.content.ContentFactory;
-import okhttp3.*;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
@@ -15,9 +14,6 @@ import javax.swing.event.HyperlinkEvent;
 import java.awt.*;
 import java.awt.datatransfer.StringSelection;
 import java.awt.datatransfer.Clipboard;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.UUID;
 
@@ -91,7 +87,7 @@ public class SidepanelFactory implements ToolWindowFactory {
             String userInput = inputField.getText().trim();
             if (!userInput.isEmpty()) {
                 inputField.setText("");
-                fetchStreamingResponse(userInput, (JTextPane) responsePane);
+                fetchStreamingResponse(userInput, responsePane);
             } else {
                 Messages.showInfoMessage(project, "Please enter a query.", "Input Required");
             }
@@ -100,12 +96,13 @@ public class SidepanelFactory implements ToolWindowFactory {
         inputField.addActionListener(e -> sendButton.doClick());
     }
 
-    private void fetchStreamingResponse(String userInput, JTextPane responsePane) {
+    private void fetchStreamingResponse(String userInput, JEditorPane responsePane) {
         new Thread(() -> {
             try {
-                String token = "Bearer YOUR_AUTH_TOKEN";
-                String apiUrl = "https://your-api-endpoint.com/stream";
+                String token = "Bearer YOUR_AUTH_TOKEN"; // 🔐 Replace with actual token
+                String apiUrl = "https://your-api-endpoint.com/stream"; // ✅ Replace with your endpoint
 
+                // Prepare JSON body
                 String jsonBody = new JSONObject()
                         .put("prompt", userInput)
                         .put("category_type", "1")
@@ -121,33 +118,21 @@ public class SidepanelFactory implements ToolWindowFactory {
                         .post(body)
                         .build();
 
-                // Extract existing HTML
-                String existingHtml = responsePane.getText();
-                if (existingHtml.startsWith("<html>") && existingHtml.contains("<body")) {
-                    int bodyStart = existingHtml.indexOf("<body");
-                    int bodyEnd = existingHtml.indexOf(">", bodyStart);
-                    int endIndex = existingHtml.lastIndexOf("</body>");
-                    if (bodyStart != -1 && bodyEnd != -1 && endIndex != -1) {
-                        existingHtml = existingHtml.substring(bodyEnd + 1, endIndex);
-                    }
-                }
-
-                StringBuilder newHtml = new StringBuilder();
-
-                newHtml.append(
-                        "<div style='background:#1f2937;border:1px solid #3b82f6;border-radius:8px;padding:10px;margin-bottom:12px;'>" +
-                                "<div style='color:#60a5fa;font-weight:bold;margin-bottom:4px;'>User</div>" +
-                                "<div style='color:#d4d4d4;'>" + escape(userInput) + "</div>" +
-                                "</div>" +
-                                "<div style='background:#2c2c2c;border:1px solid #3c3c3c;border-radius:8px;padding:12px;margin-bottom:12px;'>" +
-                                "<div style='color:#98c379;font-weight:bold;margin-bottom:6px;'>AI</div>"
+                // Append user input to content
+                fullContent.append(
+                        "<div style='background:#1f2937;border:1px solid #3b82f6;border-radius:8px;padding:10px;margin:10px 0;'>" +
+                                "<div style='color:#60a5fa;font-weight:bold;'>User</div>" +
+                                "<div style='color:#d4d4d4;'>" + escape(userInput) + "</div></div>"
                 );
 
-                StringBuilder currentCodeBlock = new StringBuilder();
-                boolean[] inCodeBlock = {false};
-                int[] codeBlockCounter = {0};
+                // AI response container
+                StringBuilder aiContent = new StringBuilder();
+                aiContent.append("<div style='background:#2c2c2c;border:1px solid #3c3c3c;border-radius:8px;padding:12px;margin-bottom:12px;'>")
+                        .append("<div style='color:#98c379;font-weight:bold;margin-bottom:6px;'>AI</div><div>");
 
-                String finalExistingHtml = existingHtml;
+                boolean[] inCode = {false};
+                StringBuilder codeBlock = new StringBuilder();
+
                 client.newCall(request).enqueue(new Callback() {
                     @Override
                     public void onFailure(Call call, IOException e) {
@@ -166,34 +151,29 @@ public class SidepanelFactory implements ToolWindowFactory {
                         while ((line = reader.readLine()) != null) {
                             String finalLine = line;
 
-                            if (finalLine.startsWith("```")) {
-                                inCodeBlock[0] = !inCodeBlock[0];
-
-                                if (!inCodeBlock[0]) {
-                                    // Close code block and render
-                                    String uid = "code" + (++codeBlockCounter[0]);
-                                    newHtml.append(renderCodeBlock(currentCodeBlock.toString(), uid));
-                                    currentCodeBlock.setLength(0);
-                                }
-
-                            } else {
-                                if (inCodeBlock[0]) {
-                                    currentCodeBlock.append(finalLine).append("\n");
+                            if (finalLine.trim().equals("```")) {
+                                inCode[0] = !inCode[0];
+                                if (inCode[0]) {
+                                    codeBlock.setLength(0);
                                 } else {
-                                    newHtml.append("<div style='color:#d4d4d4;margin-bottom:6px;'>")
-                                            .append(applyMarkdown(finalLine))
-                                            .append("</div>");
+                                    String uid = UUID.randomUUID().toString();
+                                    aiContent.append(renderCodeBlock(codeBlock.toString(), uid));
                                 }
+                            } else if (inCode[0]) {
+                                codeBlock.append(finalLine).append("\n");
+                            } else {
+                                aiContent.append(renderMarkdown(finalLine));
                             }
 
-                            String fullHtml = "<html><body style='font-family:sans-serif;padding:8px;background:#1e1e1e; color:#d4d4d4;'>" +
-                                    finalExistingHtml + newHtml + "</div></body></html>";
+                            String fullHtml = wrapHTML(fullContent.toString() + aiContent.toString() + "</div></div>");
 
                             SwingUtilities.invokeLater(() -> {
                                 responsePane.setText(fullHtml);
                                 responsePane.setCaretPosition(responsePane.getDocument().getLength());
                             });
                         }
+
+                        fullContent.append(aiContent).append("</div></div>");
                     }
                 });
 
@@ -203,9 +183,6 @@ public class SidepanelFactory implements ToolWindowFactory {
         }).start();
     }
 
-    private String applyMarkdown(String line) {
-        return escape(line).replace("**", "<b>").replace("__", "<i>"); // You can enhance this
-    }
 
     private String renderMarkdown(String line) {
         line = escape(line);
