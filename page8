@@ -1,0 +1,152 @@
+private void simulateStreamingResponse(String userInput, JPanel responseContainer) {
+    JLabel userLabel = new JLabel("<html><body style='font-family:Poppins,sans-serif; color:#66ccff;'>You: " + userInput + "</body></html>");
+    userLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+    responseContainer.add(userLabel);
+
+    JPanel aiResponsePanel = new JPanel();
+    aiResponsePanel.setLayout(new BoxLayout(aiResponsePanel, BoxLayout.Y_AXIS));
+    aiResponsePanel.setBackground(new Color(40, 40, 40));
+    aiResponsePanel.setBorder(new EmptyBorder(8, 8, 8, 8));
+    aiResponsePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+    responseContainer.add(Box.createVerticalStrut(10));
+    responseContainer.add(aiResponsePanel);
+    responseContainer.revalidate();
+
+    new Thread(() -> {
+        List<Object> renderQueue = new ArrayList<>();
+        boolean inCodeBlock = false;
+        StringBuilder codeBuilder = new StringBuilder();
+
+        HttpClient client = HttpClient.newHttpClient();
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:3000/api/stream")) // replace with your API URL
+                .POST(HttpRequest.BodyPublishers.ofString(userInput))
+                .header("Content-Type", "text/plain")
+                .build();
+
+        try {
+            HttpResponse<InputStream> response = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
+            BufferedReader reader = new BufferedReader(new InputStreamReader(response.body()));
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                Thread.sleep(30); // simulate streaming effect
+
+                if (line.trim().startsWith("```")) {
+                    if (inCodeBlock) {
+                        renderQueue.add(new CodeBlock(codeBuilder.toString()));
+                        codeBuilder.setLength(0);
+                        inCodeBlock = false;
+                    } else {
+                        inCodeBlock = true;
+                    }
+                } else if (inCodeBlock) {
+                    codeBuilder.append(line).append("\n");
+                } else {
+                    renderQueue.add(line);
+                }
+            }
+
+            SwingUtilities.invokeLater(() -> {
+                JEditorPane htmlPane = createHtmlPane();
+                StringBuilder htmlBuilder = new StringBuilder("<html><body style='font-family:Poppins,sans-serif; color:#dddddd;'>");
+
+                for (Object item : renderQueue) {
+                    if (item instanceof String) {
+                        htmlBuilder.append(parseMarkdownLine((String) item)).append("<br>");
+                    } else if (item instanceof CodeBlock) {
+                        htmlPane.setText(htmlBuilder.toString() + "</body></html>");
+                        htmlPane.setCaretPosition(htmlPane.getDocument().getLength());
+                        if (htmlPane.getParent() == null) {
+                            aiResponsePanel.add(htmlPane);
+                        }
+
+                        CodeBlock block = (CodeBlock) item;
+                        JPanel codePanel = createCodePanel(block.code);
+                        aiResponsePanel.add(Box.createVerticalStrut(8));
+                        aiResponsePanel.add(codePanel);
+
+                        htmlBuilder = new StringBuilder("<html><body style='font-family:Poppins,sans-serif; color:#dddddd;'>");
+                        htmlPane = createHtmlPane();
+                    }
+                }
+
+                if (!htmlBuilder.toString().isEmpty()) {
+                    htmlPane.setText(htmlBuilder.toString() + "</body></html>");
+                    aiResponsePanel.add(htmlPane);
+                }
+
+                aiResponsePanel.revalidate();
+                aiResponsePanel.repaint();
+            });
+
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+        }
+    }).start();
+}
+
+
+
+private static class CodeBlock {
+    String code;
+    CodeBlock(String code) {
+        this.code = code;
+    }
+}
+
+private JEditorPane createHtmlPane() {
+    JEditorPane htmlPane = new JEditorPane();
+    htmlPane.setContentType("text/html");
+    htmlPane.setEditable(false);
+    htmlPane.setOpaque(false);
+    htmlPane.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, Boolean.TRUE);
+    htmlPane.setFont(new Font("Poppins", Font.PLAIN, 13));
+    htmlPane.setForeground(Color.WHITE);
+    return htmlPane;
+}
+
+private JPanel createCodePanel(String code) {
+    JPanel codePanel = new JPanel(new BorderLayout());
+    codePanel.setBackground(new Color(50, 50, 50));
+    codePanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+
+    JTextArea codeArea = new JTextArea(code);
+    codeArea.setFont(new Font("JetBrains Mono", Font.PLAIN, 13));
+    codeArea.setEditable(false);
+    codeArea.setBackground(new Color(50, 50, 50));
+    codeArea.setForeground(Color.WHITE);
+    codeArea.setBorder(null);
+
+    JButton copyButton = new JButton("📋");
+    copyButton.setFont(new Font("Poppins", Font.PLAIN, 12));
+    copyButton.setToolTipText("Copy code");
+    copyButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+    copyButton.setFocusPainted(false);
+    copyButton.setContentAreaFilled(false);
+    copyButton.setForeground(Color.LIGHT_GRAY);
+    copyButton.setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
+
+    copyButton.addActionListener(e -> Toolkit.getDefaultToolkit().getSystemClipboard()
+            .setContents(new StringSelection(code), null));
+
+    JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+    topPanel.setOpaque(false);
+    topPanel.add(copyButton);
+
+    codePanel.add(topPanel, BorderLayout.NORTH);
+    codePanel.add(new JScrollPane(codeArea), BorderLayout.CENTER);
+    return codePanel;
+}
+
+
+private String parseMarkdownLine(String line) {
+    String parsed = line
+            .replaceAll("(?<!\\*)\\*([^*]+)\\*(?!\\*)", "<i>$1</i>") // *italic*
+            .replaceAll("\\*\\*([^*]+)\\*\\*", "<b>$1</b>");         // **bold**
+
+    if (parsed.startsWith("# ")) return "<h2>" + parsed.substring(2) + "</h2>";
+    if (parsed.startsWith("## ")) return "<h3>" + parsed.substring(3) + "</h3>";
+    if (parsed.startsWith("- ")) return "• " + parsed.substring(2);
+    return parsed;
+}
