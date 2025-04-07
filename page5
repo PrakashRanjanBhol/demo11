@@ -248,45 +248,58 @@ private void fetchStreamingResponse(String userInput, JTextPane responsePane) {
                     }
 
                     BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream()));
-                    StringBuilder html = new StringBuilder(
-                            "<html><body style='font-family:\"Poppins\", \"Lato\", sans-serif;"
-                                    + "color:#dcdcdc;background-color:#1e1e1e;margin:0;padding:10px;'>");
+                    boolean inCodeBlock = false;
 
-                    html.append("<div style='background:#1f2937;border:1px solid #3b82f6;border-radius:8px;padding:10px;margin-bottom:12px;'>")
-                            .append("<div style='color:#60a5fa;font-weight:bold;margin-bottom:4px;'>User</div>")
-                            .append("<div>").append(userInput).append("</div></div>");
+                    // Extract previous HTML content if present
+                    String currentText = responsePane.getText();
+                    if (currentText.startsWith("<html>") && currentText.contains("<body")) {
+                        int bodyStart = currentText.indexOf("<body");
+                        int bodyEnd = currentText.indexOf(">", bodyStart);
+                        int endIndex = currentText.lastIndexOf("</body>");
+                        if (bodyStart != -1 && bodyEnd != -1 && endIndex != -1) {
+                            currentText = currentText.substring(bodyEnd + 1, endIndex);
+                        }
+                    }
 
-                    html.append("<div style='background:#2c2c2c;border:1px solid #3c3c3c;border-radius:8px;padding:12px;margin-bottom:12px;'>")
-                            .append("<div style='color:#98c379;font-weight:bold;margin-bottom:6px;'>AI</div>")
-                            .append("<div style='color:#d4d4d4;'>");
+                    StringBuilder newHtml = new StringBuilder();
+                    newHtml.append(
+                            "<div style='background:#1f2937;border:1px solid #3b82f6;border-radius:8px;padding:10px;margin-bottom:12px;font-family:\"Poppins\", \"Lato\", sans-serif;'>" +
+                                    "<div style='color:#60a5fa;font-weight:bold;margin-bottom:4px;'>User</div>" +
+                                    "<div style='color:#d4d4d4;'>" + userInput + "</div>" +
+                                    "</div>"
+                    );
 
-                    boolean[] inCodeBlock = {false};
+                    newHtml.append(
+                            "<div style='background:#2c2c2c;border:1px solid #3c3c3c;border-radius:8px;padding:12px;margin-bottom:12px;font-family:\"Poppins\", \"Lato\", sans-serif;'>" +
+                                    "<div style='color:#98c379;font-weight:bold;margin-bottom:6px;'>AI</div>" +
+                                    "<div style='color:#d4d4d4;'>"
+                    );
+
                     String line;
-
                     while ((line = reader.readLine()) != null) {
-                        String finalLine = line;
-
-                        if (finalLine.trim().startsWith("```")) {
-                            inCodeBlock[0] = !inCodeBlock[0];
-                            if (inCodeBlock[0]) {
-                                html.append("<div style='background:#1e1e1e;border:1px solid #333;"
-                                        + "padding:10px;margin:6px 0;border-radius:6px;"
-                                        + "font-family:\"JetBrains Mono\", Consolas, \"Fira Code\", monospace;"
-                                        + "white-space:pre;'>");
+                        String trimmed = line.trim();
+                        if (trimmed.startsWith("```")) {
+                            inCodeBlock = !inCodeBlock;
+                            if (inCodeBlock) {
+                                newHtml.append("<div style='background:#1e1e1e;border:1px solid #333;border-radius:6px;padding:10px;font-family:\"JetBrains Mono\", Consolas, \"Fira Code\", monospace;white-space:pre;color:#d4d4d4;margin:6px 0;'>");
                             } else {
-                                html.append("</div>");
+                                newHtml.append("</div>");
                             }
                         } else {
-                            if (inCodeBlock[0]) {
-                                html.append(applyJavaHighlighting(finalLine)).append("<br/>");
+                            if (inCodeBlock) {
+                                newHtml.append(applyJavaHighlighting(trimmed)).append("<br/>");
                             } else {
-                                html.append(applyMarkdown(finalLine));
+                                newHtml.append(applyMarkdown(trimmed));
                             }
                         }
 
-                        String finalHtml = html.toString() + "</div></div></body></html>";
+                        String fullHtml =
+                                "<html><body style='font-family:\"Poppins\", \"Lato\", sans-serif;padding:8px;background:#1e1e1e; color:#d4d4d4;'>" +
+                                        currentText + newHtml +
+                                        "</div></div></body></html>";
+
                         SwingUtilities.invokeLater(() -> {
-                            responsePane.setText(finalHtml);
+                            responsePane.setText(fullHtml);
                             responsePane.setCaretPosition(responsePane.getDocument().getLength());
                         });
                     }
@@ -298,3 +311,4 @@ private void fetchStreamingResponse(String userInput, JTextPane responsePane) {
         }
     }).start();
 }
+
