@@ -10,253 +10,179 @@ import com.intellij.ui.content.ContentFactory;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
-import javax.swing.event.HyperlinkEvent;
 import java.awt.*;
-import java.awt.datatransfer.StringSelection;
-import java.awt.datatransfer.Clipboard;
-import java.net.URL;
-import java.util.UUID;
 
 public class SidepanelFactory implements ToolWindowFactory {
-
-    private StringBuilder fullContent = new StringBuilder();
 
     @Override
     public void createToolWindowContent(@NotNull Project project, @NotNull ToolWindow toolWindow) {
         JPanel mainPanel = new JPanel(new BorderLayout());
-        mainPanel.setBackground(new Color(30, 30, 30));
 
-        // Header
+        // Header (5%)
         JPanel headerPanel = new JPanel();
-        headerPanel.setPreferredSize(new Dimension(0, 40));
-        headerPanel.setBackground(new Color(45, 45, 45));
+        headerPanel.setPreferredSize(new Dimension(0, 30));
+        headerPanel.setLayout(new FlowLayout(FlowLayout.LEFT));
         JLabel titleLabel = new JLabel("AI Assistant");
-        titleLabel.setForeground(Color.WHITE);
         titleLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
         headerPanel.add(titleLabel);
 
-        // Response Pane
-        JEditorPane responsePane = new JEditorPane();
+        // Center (90%) - Response pane
+        JTextPane responsePane = new JTextPane();
         responsePane.setContentType("text/html");
         responsePane.setEditable(false);
-        responsePane.setOpaque(false);
-        responsePane.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, Boolean.TRUE);
-        responsePane.setText(wrapHTML(fullContent.toString()));
-
-        responsePane.addHyperlinkListener(e -> {
-            if (e.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
-                if (e.getDescription().startsWith("copy:")) {
-                    String code = e.getDescription().substring(5);
-                    StringSelection selection = new StringSelection(code);
-                    Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
-                    clipboard.setContents(selection, selection);
-                }
-            }
-        });
+        responsePane.setText("<html><body style='font-family:sans-serif;'></body></html>");
 
         JScrollPane scrollPane = new JScrollPane(responsePane);
-        scrollPane.setBorder(null);
-        scrollPane.getViewport().setOpaque(false);
-        scrollPane.setOpaque(false);
-        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
 
-        // Input
+        JPanel centerPanel = new JPanel(new BorderLayout());
+        centerPanel.add(scrollPane, BorderLayout.CENTER);
+
+        // Footer (5%) - Input field and send button
         JBTextField inputField = new JBTextField();
-        inputField.setPreferredSize(new Dimension(200, 36));
+        inputField.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        inputField.setPreferredSize(new Dimension(0, 40));
+        inputField.setMargin(new Insets(8, 8, 8, 8));
+
         JButton sendButton = new JButton("Send");
-        sendButton.setPreferredSize(new Dimension(80, 36));
-        sendButton.setBackground(new Color(75, 110, 175));
-        sendButton.setForeground(Color.WHITE);
+        sendButton.setFont(new Font("SansSerif", Font.BOLD, 14));
+        sendButton.setPreferredSize(new Dimension(80, 40));
 
-        JPanel inputPanel = new JPanel(new BorderLayout());
-        inputPanel.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
-        inputPanel.setBackground(new Color(30, 30, 30));
-        inputPanel.add(inputField, BorderLayout.CENTER);
-        inputPanel.add(sendButton, BorderLayout.EAST);
+        JPanel footerPanel = new JPanel(new BorderLayout(5, 0));
+        footerPanel.setPreferredSize(new Dimension(0, 50));
+        footerPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        footerPanel.add(inputField, BorderLayout.CENTER);
+        footerPanel.add(sendButton, BorderLayout.EAST);
 
-        // Compose
+        // Assemble the layout
         mainPanel.add(headerPanel, BorderLayout.NORTH);
-        mainPanel.add(scrollPane, BorderLayout.CENTER);
-        mainPanel.add(inputPanel, BorderLayout.SOUTH);
+        mainPanel.add(centerPanel, BorderLayout.CENTER);
+        mainPanel.add(footerPanel, BorderLayout.SOUTH);
 
-        // Final content
-        Content content = ContentFactory.getInstance().createContent(mainPanel, "", false);
+        // Add content to tool window
+        ContentFactory contentFactory = ContentFactory.getInstance();
+        Content content = contentFactory.createContent(mainPanel, "", false);
         toolWindow.getContentManager().addContent(content);
 
+        // Button action
         sendButton.addActionListener(e -> {
             String userInput = inputField.getText().trim();
             if (!userInput.isEmpty()) {
                 inputField.setText("");
-                fetchStreamingResponse(userInput, responsePane);
+                simulateStreamingResponse(userInput, responsePane);
             } else {
                 Messages.showInfoMessage(project, "Please enter a query.", "Input Required");
             }
         });
-
-        inputField.addActionListener(e -> sendButton.doClick());
     }
 
-    private void fetchStreamingResponse(String userInput, JEditorPane responsePane) {
+
+
+    private void simulateStreamingResponse(String userInput, JTextPane responsePane) {
         new Thread(() -> {
             try {
-                String token = "Bearer YOUR_AUTH_TOKEN"; // 🔐 Replace with actual token
-                String apiUrl = "https://your-api-endpoint.com/stream"; // ✅ Replace with your endpoint
+                String[] simulatedLines = {
+                        "# AI Response",
+                        "Here is an example of **Java code** you asked for:",
+                        "```java",
+                        "public class HelloWorld {",
+                        "    public static void main(String[] args) {",
+                        "        System.out.println(\"Hello, world!\");",
+                        "    }",
+                        "}",
+                        "```",
+                        "Let me know if you want *Python* or *JavaScript* versions.",
+                        "- Easy to use",
+                        "- Fast and clean",
+                        "## Thanks!"
+                };
 
-                // Prepare JSON body
-                String jsonBody = new JSONObject()
-                        .put("prompt", userInput)
-                        .put("category_type", "1")
-                        .put("session_id", "1")
-                        .put("mld_name", "1")
-                        .toString();
+                StringBuilder html = new StringBuilder("<html><body style='font-family:sans-serif;'>");
+                boolean inCodeBlock = false;
 
-                OkHttpClient client = new OkHttpClient();
-                RequestBody body = RequestBody.create(jsonBody, MediaType.parse("application/json"));
-                Request request = new Request.Builder()
-                        .url(apiUrl)
-                        .header("Authorization", token)
-                        .post(body)
-                        .build();
+                html.append("<div style='margin-bottom:10px;'><b>User:</b> ").append(userInput).append("</div>");
 
-                // Append user input to content
-                fullContent.append(
-                        "<div style='background:#1f2937;border:1px solid #3b82f6;border-radius:8px;padding:10px;margin:10px 0;'>" +
-                                "<div style='color:#60a5fa;font-weight:bold;'>User</div>" +
-                                "<div style='color:#d4d4d4;'>" + escape(userInput) + "</div></div>"
-                );
+                for (String line : simulatedLines) {
+                    Thread.sleep(400); // Simulate streaming delay
 
-                // AI response container
-                StringBuilder aiContent = new StringBuilder();
-                aiContent.append("<div style='background:#2c2c2c;border:1px solid #3c3c3c;border-radius:8px;padding:12px;margin-bottom:12px;'>")
-                        .append("<div style='color:#98c379;font-weight:bold;margin-bottom:6px;'>AI</div><div>");
-
-                boolean[] inCode = {false};
-                StringBuilder codeBlock = new StringBuilder();
-
-                client.newCall(request).enqueue(new Callback() {
-                    @Override
-                    public void onFailure(Call call, IOException e) {
-                        e.printStackTrace();
+                    if (line.startsWith("```")) {
+                        inCodeBlock = !inCodeBlock;
+                        if (inCodeBlock) {
+                            html.append("<div style='background:#2d2d2d;border:1px solid #444;"
+                                    + "padding:8px;margin:6px 0;font-family:monospace;"
+                                    + "white-space:pre;color:#d4d4d4;border-radius:6px;'>");
+                        } else {
+                            html.append("</div>");
+                        }
+                    } else {
+                        if (inCodeBlock) {
+                            html.append(applyJavaHighlighting(line)).append("<br/>");
+                        } else {
+                            html.append(applyMarkdown(line));
+                        }
                     }
 
-                    @Override
-                    public void onResponse(Call call, Response response) throws IOException {
-                        if (!response.isSuccessful()) {
-                            System.err.println("Request failed: " + response.code());
-                            return;
-                        }
-
-                        BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream()));
-                        String line;
-                        while ((line = reader.readLine()) != null) {
-                            String finalLine = line;
-
-                            if (finalLine.trim().equals("```")) {
-                                inCode[0] = !inCode[0];
-                                if (inCode[0]) {
-                                    codeBlock.setLength(0);
-                                } else {
-                                    String uid = UUID.randomUUID().toString();
-                                    aiContent.append(renderCodeBlock(codeBlock.toString(), uid));
-                                }
-                            } else if (inCode[0]) {
-                                codeBlock.append(finalLine).append("\n");
-                            } else {
-                                aiContent.append(renderMarkdown(finalLine));
-                            }
-
-                            String fullHtml = wrapHTML(fullContent.toString() + aiContent.toString() + "</div></div>");
-
-                            SwingUtilities.invokeLater(() -> {
-                                responsePane.setText(fullHtml);
-                                responsePane.setCaretPosition(responsePane.getDocument().getLength());
-                            });
-                        }
-
-                        fullContent.append(aiContent).append("</div></div>");
-                    }
-                });
-
-            } catch (Exception ex) {
+                    String finalHtml = html.toString() + "</body></html>";
+                    SwingUtilities.invokeLater(() -> {
+                        responsePane.setText(finalHtml);
+                        responsePane.setCaretPosition(responsePane.getDocument().getLength());
+                    });
+                }
+            } catch (InterruptedException ex) {
                 ex.printStackTrace();
             }
         }).start();
     }
 
+    private String applyJavaHighlighting(String line) {
+        String[] keywords = {
+                "public", "class", "static", "void", "new", "int", "String", "if", "else", "return"
+        };
 
-    private String renderMarkdown(String line) {
-        line = escape(line);
-        if (line.startsWith("# ")) return "<h1 style='margin:4px 0;'>" + line.substring(2) + "</h1>";
-        if (line.startsWith("## ")) return "<h2 style='margin:4px 0;'>" + line.substring(3) + "</h2>";
-        if (line.startsWith("### ")) return "<h3 style='margin:4px 0;'>" + line.substring(4) + "</h3>";
+        // Escape HTML
+        line = line.replace("<", "&lt;").replace(">", "&gt;");
+
+        // Highlight strings
+        line = line.replaceAll("\"(.*?)\"", "<span style='color:#d69d85'>\"$1\"</span>");
+
+        // Highlight keywords
+        for (String keyword : keywords) {
+            line = line.replaceAll("\\b" + keyword + "\\b",
+                    "<span style='color:#569CD6;font-weight:bold;'>" + keyword + "</span>");
+        }
+
+        // Highlight comments
+        if (line.trim().startsWith("//")) {
+            line = "<span style='color:#6A9955;'>" + line + "</span>";
+        }
+
+        return line;
+    }
+
+
+    private String applyMarkdown(String line) {
+        line = line.replace("<", "&lt;").replace(">", "&gt;");
+
+        // Headings
+        if (line.startsWith("###")) {
+            return "<h3 style='margin:4px 0;'>" + line.substring(3).trim() + "</h3>";
+        } else if (line.startsWith("##")) {
+            return "<h2 style='margin:6px 0;'>" + line.substring(2).trim() + "</h2>";
+        } else if (line.startsWith("#")) {
+            return "<h1 style='margin:8px 0;'>" + line.substring(1).trim() + "</h1>";
+        }
+
+        // Bullet lists
+        if (line.trim().startsWith("- ")) {
+            return "<ul style='margin:4px 0;'><li>" + line.trim().substring(2) + "</li></ul>";
+        }
+
+        // Bold
         line = line.replaceAll("\\*\\*(.*?)\\*\\*", "<strong>$1</strong>");
+
+        // Italic
         line = line.replaceAll("\\*(.*?)\\*", "<em>$1</em>");
+
         return "<div style='margin:2px 0;'>" + line + "</div>";
     }
-
-    private String renderCodeBlock(String code, String uid) {
-        String copyHref = "copy:" + escape(code);
-        URL copyIconUrl = getClass().getResource("/icons/copy.png");
-
-        // Basic Java syntax highlighting
-        String highlighted = escape(code)
-                .replaceAll("\\b(public|private|protected|static|void|class|new|return|if|else|for|while|switch|case|break|continue|this|import|package|final|try|catch|throw|throws)\\b", "<span style='color:#569CD6;'>$1</span>")
-                .replaceAll("\\b(int|double|float|boolean|char|String|long|short|byte)\\b", "<span style='color:#4EC9B0;'>$1</span>")
-                .replaceAll("(\"[^\"]*\")", "<span style='color:#CE9178;'>$1</span>")
-                .replaceAll("(//.*?$)", "<span style='color:#6A9955;'>$1</span>")
-                .replaceAll("(?m)(/\\*.*?\\*/)", "<span style='color:#6A9955;'>$1</span>");
-
-        return "<div style='position:relative;background:#1e1e1e;border:1px solid #333;border-radius:6px;padding:10px 10px 10px 10px;margin-top:8px;'>" +
-                "<a href='" + copyHref + "' " +
-                "style='position:absolute;top:8px;right:8px;cursor:pointer;'>" +
-                "<img src='" + copyIconUrl + "' width='16' height='16' style='display:block;'/>" +
-                "</a>" +
-                "<pre style='margin:0;font-family:monospace;font-size:13px;color:#d4d4d4;white-space:pre-wrap;'>" +
-                highlighted +
-                "</pre></div>";
-    }
-
-    private String wrapHTML(String content) {
-        return "<html><body style='font-family:sans-serif;padding:8px;background:#1e1e1e; color:#d4d4d4;'>" +
-                content + "</body></html>";
-    }
-
-    private String escape(String text) {
-        return text.replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;");
-    }
 }
-
-
-
-
-
-
-
-
-
-
-
-private String renderCodeBlock(String code, String uid) {
-    return "<div style='position:relative;margin:10px 0;'>" +
-            "<img src='file:resources/copy.png' title='Copy' " +
-            "style='position:absolute;top:8px;right:8px;width:16px;height:16px;cursor:pointer;' " +
-            "onclick='copyCode(\"" + uid + "\")'/>" +
-            "<pre id='" + uid + "' style='" +
-            "background:#1e1e1e;" +
-            "border:1px solid #333;" +
-            "border-radius:6px;" +
-            "padding:12px;" +
-            "font-family:monospace;" +
-            "overflow-x:auto;" +
-            "max-width:100%;" +
-            "color:#d4d4d4;" +
-            "box-sizing:border-box;" +
-            "white-space:pre-wrap;" +  // 🛠 wrap long lines
-            "word-break:break-word;" +  // 🛠 break long words
-            "'>" + escape(code) + "</pre></div>";
-}
-
-
-if (finalLine.trim().startsWith("```")) {
