@@ -228,3 +228,140 @@ public class SidepanelFactory implements ToolWindowFactory {
         return "<div style='margin:2px 0;'>" + line + "</div>";
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+private void simulateStreamingResponse(String userInput, JTextPane responsePane) {
+    new Thread(() -> {
+        try {
+            // Prepare existing HTML content
+            String currentText = responsePane.getText();
+            if (currentText.startsWith("<html>") && currentText.contains("<body")) {
+                int bodyStart = currentText.indexOf("<body");
+                int bodyEnd = currentText.indexOf(">", bodyStart);
+                int endIndex = currentText.lastIndexOf("</body>");
+                if (bodyStart != -1 && bodyEnd != -1 && endIndex != -1) {
+                    currentText = currentText.substring(bodyEnd + 1, endIndex);
+                }
+            }
+
+            // Wrap user query in styled box
+            StringBuilder newHtml = new StringBuilder();
+            newHtml.append(
+                "<div style='background:#1f2937;border:1px solid #3b82f6;border-radius:8px;padding:10px;margin-bottom:12px;'>"
+                + "<div style='color:#60a5fa;font-weight:bold;margin-bottom:4px;'>User</div>"
+                + "<div style='color:#d4d4d4;'>" + userInput + "</div>"
+                + "</div>"
+            );
+
+            // Start AI response box
+            newHtml.append(
+                "<div style='background:#2c2c2c;border:1px solid #3c3c3c;border-radius:8px;padding:12px;margin-bottom:12px;'>"
+                + "<div style='color:#98c379;font-weight:bold;margin-bottom:6px;'>AI</div>"
+                + "<div style='color:#d4d4d4;'>"
+            );
+
+            // Build request
+            String token = "Bearer YOUR_AUTH_TOKEN"; // 🔐 Replace with real token
+            String apiUrl = "https://your-api-endpoint.com/stream"; // ✅ Replace with real URL
+
+            String jsonBody = new JSONObject()
+                    .put("prompt", userInput)
+                    .put("category_type", "1")
+                    .put("session_id", "1")
+                    .put("mld_name", "1")
+                    .toString();
+
+            OkHttpClient client = new OkHttpClient();
+
+            RequestBody body = RequestBody.create(jsonBody, MediaType.parse("application/json"));
+            Request request = new Request.Builder()
+                    .url(apiUrl)
+                    .header("Authorization", token)
+                    .post(body)
+                    .build();
+
+            client.newCall(request).enqueue(new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    e.printStackTrace();
+                }
+
+                @Override
+                public void onResponse(Call call, Response response) {
+                    if (!response.isSuccessful()) {
+                        System.err.println("Unsuccessful response: " + response);
+                        return;
+                    }
+
+                    boolean inCodeBlock = false;
+
+                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream()))) {
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            final String currentLine = line.trim();
+
+                            // Skip empty lines
+                            if (currentLine.isEmpty()) continue;
+
+                            if (currentLine.startsWith("```")) {
+                                inCodeBlock = !inCodeBlock;
+                                if (inCodeBlock) {
+                                    newHtml.append("<div style='background:#1e1e1e;border:1px solid #333;border-radius:6px;padding:10px;font-family:monospace;white-space:pre;color:#d4d4d4;margin:6px 0;'>");
+                                } else {
+                                    newHtml.append("</div>");
+                                }
+                            } else {
+                                if (inCodeBlock) {
+                                    newHtml.append(applyJavaHighlighting(currentLine)).append("<br/>");
+                                } else {
+                                    newHtml.append(applyMarkdown(currentLine));
+                                }
+                            }
+
+                            // Re-render HTML on UI thread
+                            String fullHtml =
+                                    "<html><body style='font-family:sans-serif;padding:8px;background:#1e1e1e; color:#d4d4d4;'>"
+                                    + currentText + newHtml
+                                    + "</div></div></body></html>"; // close tags
+
+                            SwingUtilities.invokeLater(() -> {
+                                responsePane.setText(fullHtml);
+                                responsePane.setCaretPosition(responsePane.getDocument().getLength());
+                            });
+
+                            Thread.sleep(150); // Optional slight delay for smoother feel
+                        }
+                    } catch (IOException | InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }).start();
+}
