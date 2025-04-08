@@ -1,0 +1,317 @@
+package com.example.demo11;
+
+import com.intellij.openapi.project.Project;
+import com.intellij.openapi.ui.Messages;
+import com.intellij.openapi.wm.ToolWindow;
+import com.intellij.openapi.wm.ToolWindowFactory;
+import com.intellij.ui.components.JBTextField;
+import com.intellij.ui.content.Content;
+import com.intellij.ui.content.ContentFactory;
+import org.jetbrains.annotations.NotNull;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.datatransfer.StringSelection;
+import java.awt.datatransfer.Clipboard;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+
+public class SidepanelFactory implements ToolWindowFactory {
+
+    private JPanel responsePanel;
+    private JScrollPane scrollPane;
+
+    @Override
+    public void createToolWindowContent(@NotNull Project project, @NotNull ToolWindow toolWindow) {
+        JPanel mainPanel = new JPanel(new BorderLayout());
+
+        JBTextField inputField = new JBTextField();
+        JButton sendButton = new JButton("Send");
+
+        JPanel inputPanel = new JPanel(new BorderLayout());
+        inputPanel.add(inputField, BorderLayout.CENTER);
+        inputPanel.add(sendButton, BorderLayout.EAST);
+
+        responsePanel = new JPanel();
+        responsePanel.setLayout(new BoxLayout(responsePanel, BoxLayout.Y_AXIS));
+        responsePanel.setBackground(Color.WHITE);
+
+        scrollPane = new JScrollPane(responsePanel);
+        scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
+
+        mainPanel.add(inputPanel, BorderLayout.NORTH);
+        mainPanel.add(scrollPane, BorderLayout.CENTER);
+
+        ContentFactory contentFactory = ContentFactory.getInstance();
+        Content content = contentFactory.createContent(mainPanel, "", false);
+        toolWindow.getContentManager().addContent(content);
+
+        sendButton.addActionListener(e -> {
+            String userInput = inputField.getText().trim();
+            if (!userInput.isEmpty()) {
+                inputField.setText("");
+                addUserMessage(userInput);
+                simulateStreamingResponse(userInput);
+            } else {
+                Messages.showInfoMessage(project, "Please enter a query.", "Input Required");
+            }
+        });
+    }
+
+    private void addUserMessage(String userInput) {
+        SwingUtilities.invokeLater(() -> {
+            responsePanel.add(Box.createVerticalStrut(10));
+            responsePanel.add(createTextLabel("<html><b>User:</b> " + userInput + "</html>"));
+            scrollToBottom();
+            responsePanel.revalidate();
+            responsePanel.repaint();
+        });
+    }
+
+    private void simulateStreamingResponse(String userInput) {
+        new Thread(() -> {
+            try {
+                String[] simulatedLines = {
+                        "# AI Response",
+                        "Here is an example of **Java code** you asked for:",
+                        "```java",
+                        "public class HelloWorld {",
+                        "    public static void main(String[] args) {",
+                        "        System.out.println(\"Hello, world!\");",
+                        "    }",
+                        "}",
+                        "```",
+                        "Let me know if you want *Python* or *JavaScript* versions.",
+                        "- Easy to use",
+                        "- Fast and clean",
+                        "## Thanks!"
+                };
+
+                boolean inCodeBlock = false;
+                StringBuilder codeBuffer = new StringBuilder();
+
+                for (String line : simulatedLines) {
+                    Thread.sleep(400);
+
+                    if (line.startsWith("```")) {
+                        inCodeBlock = !inCodeBlock;
+
+                        if (!inCodeBlock) {
+                            String codeText = codeBuffer.toString();
+                            codeBuffer.setLength(0);
+                            SwingUtilities.invokeLater(() -> {
+                                responsePanel.add(createCodeBlockPanel(codeText));
+                                scrollToBottom();
+                                responsePanel.revalidate();
+                                responsePanel.repaint();
+                            });
+                        }
+
+                    } else {
+                        if (inCodeBlock) {
+                            codeBuffer.append(line).append("\n");
+                        } else {
+                            String html = applyMarkdown(line);
+                            SwingUtilities.invokeLater(() -> {
+                                responsePanel.add(createTextLabel(html));
+                                scrollToBottom();
+                                responsePanel.revalidate();
+                                responsePanel.repaint();
+                            });
+                        }
+                    }
+                }
+
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
+    private JLabel createTextLabel(String html) {
+        JLabel label = new JLabel(html);
+        label.setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 4));
+        return label;
+    }
+
+    private JPanel createCodeBlockPanel(String code) {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(new Color(43, 43, 43)); // IntelliJ dark gray
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createEmptyBorder(10, 10, 10, 10),
+                BorderFactory.createLineBorder(new Color(60, 63, 65)) // Dark border
+        ));
+
+        JTextArea codeArea = new JTextArea(code);
+        codeArea.setFont(new Font("JetBrains Mono", Font.PLAIN, 13));
+        codeArea.setForeground(new Color(187, 187, 187)); // Light gray text
+        codeArea.setBackground(new Color(43, 43, 43)); // Match panel background
+        codeArea.setCaretColor(Color.WHITE);
+        codeArea.setEditable(false);
+        codeArea.setBorder(null);
+        codeArea.setLineWrap(false);
+
+        JScrollPane scroll = new JScrollPane(codeArea);
+        scroll.setBorder(null);
+        scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
+        scroll.getVerticalScrollBar().setBackground(new Color(43, 43, 43));
+        scroll.getViewport().setBackground(new Color(43, 43, 43));
+
+        // Copy button styled for dark UI
+        JButton copyButton = new JButton("📋"); // Optionally use an icon here
+        copyButton.setToolTipText("Copy to Clipboard");
+        copyButton.setFocusable(false);
+        copyButton.setContentAreaFilled(false);
+        copyButton.setForeground(new Color(187, 187, 187));
+        copyButton.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        copyButton.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
+        copyButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+        copyButton.addActionListener(e -> {
+            StringSelection stringSelection = new StringSelection(code);
+            Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+            clipboard.setContents(stringSelection, null);
+            copyButton.setText("✔");
+            Timer timer = new Timer(1500, ev -> copyButton.setText("📋"));
+            timer.setRepeats(false);
+            timer.start();
+        });
+
+        JPanel topRight = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        topRight.setOpaque(false);
+        topRight.add(copyButton);
+
+        panel.add(topRight, BorderLayout.NORTH);
+        panel.add(scroll, BorderLayout.CENTER);
+        return panel;
+    }
+
+
+    private String applyMarkdown(String line) {
+        line = line.replace("<", "&lt;").replace(">", "&gt;");
+
+        if (line.startsWith("###")) {
+            return "<html><h3>" + line.substring(3).trim() + "</h3></html>";
+        } else if (line.startsWith("##")) {
+            return "<html><h2>" + line.substring(2).trim() + "</h2></html>";
+        } else if (line.startsWith("#")) {
+            return "<html><h1>" + line.substring(1).trim() + "</h1></html>";
+        }
+
+        if (line.trim().startsWith("- ")) {
+            return "<html><ul><li>" + line.trim().substring(2) + "</li></ul></html>";
+        }
+
+        line = line.replaceAll("\\*\\*(.*?)\\*\\*", "<b>$1</b>");
+        line = line.replaceAll("\\*(.*?)\\*", "<i>$1</i>");
+        return "<html><div>" + line + "</div></html>";
+    }
+
+    private void scrollToBottom() {
+        SwingUtilities.invokeLater(() -> {
+            JScrollBar verticalBar = scrollPane.getVerticalScrollBar();
+            verticalBar.setValue(verticalBar.getMaximum());
+        });
+    }
+}
+
+
+
+
+
+
+
+
+
+
+private void callApiWithStreamingResponse(String userInput) {
+    new Thread(() -> {
+        String token = "Bearer YOUR_AUTH_TOKEN"; // 🔐 Replace with your real token
+        String apiUrl = "https://your-api-endpoint.com/stream"; // ✅ Replace with your actual endpoint
+
+        String jsonBody = new JSONObject()
+                .put("prompt", userInput)
+                .put("category_type", "1")
+                .put("session_id", "1")
+                .put("mld_name", "1")
+                .toString();
+
+        OkHttpClient client = new OkHttpClient();
+
+        RequestBody body = RequestBody.create(jsonBody, MediaType.parse("application/json"));
+        Request request = new Request.Builder()
+                .url(apiUrl)
+                .header("Authorization", token)
+                .post(body)
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                SwingUtilities.invokeLater(() -> {
+                    responsePanel.add(createTextLabel("<html><font color='red'>Failed to connect to API</font></html>"));
+                    scrollToBottom();
+                    responsePanel.revalidate();
+                    responsePanel.repaint();
+                });
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                if (!response.isSuccessful()) {
+                    SwingUtilities.invokeLater(() -> {
+                        responsePanel.add(createTextLabel("<html><font color='red'>Error: " + response.code() + "</font></html>"));
+                        scrollToBottom();
+                        responsePanel.revalidate();
+                        responsePanel.repaint();
+                    });
+                    return;
+                }
+
+                boolean inCodeBlock = false;
+                StringBuilder codeBuilder = new StringBuilder();
+
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        String currentLine = line;
+
+                        if (currentLine.trim().startsWith("```")) {
+                            inCodeBlock = !inCodeBlock;
+
+                            if (!inCodeBlock) {
+                                String finalCode = codeBuilder.toString();
+                                codeBuilder.setLength(0);
+                                SwingUtilities.invokeLater(() -> {
+                                    responsePanel.add(createCodeBlockPanel(finalCode));
+                                    scrollToBottom();
+                                    responsePanel.revalidate();
+                                    responsePanel.repaint();
+                                });
+                            }
+
+                        } else {
+                            if (inCodeBlock) {
+                                codeBuilder.append(currentLine).append("\n");
+                            } else {
+                                String html = applyMarkdown(currentLine);
+                                SwingUtilities.invokeLater(() -> {
+                                    responsePanel.add(createTextLabel(html));
+                                    scrollToBottom();
+                                    responsePanel.revalidate();
+                                    responsePanel.repaint();
+                                });
+                            }
+                        }
+
+                        try {
+                            Thread.sleep(100); // Optional: mimic typing
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            }
+        });
+    }).start();
+}
