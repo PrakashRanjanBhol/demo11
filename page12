@@ -1,0 +1,124 @@
+ private boolean buttonsVisible = false;
+    private final JPanel buttonContainer;
+
+    public ChatPanel(Project project) {
+        setLayout(new BorderLayout());
+
+        // === Body (Chat area) ===
+        JTextPane responsePane = new JTextPane();
+        responsePane.setContentType("text/html");
+        responsePane.setEditable(false);
+        responsePane.setText(fullHtml + "</body></html>");
+
+        JScrollPane scrollPane = new JScrollPane(responsePane);
+        scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
+        add(scrollPane, BorderLayout.CENTER);
+
+        // === Header ===
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setPreferredSize(new Dimension(0, 30));
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(0, 10, 0, 10));
+
+        String[] modes = {"Simple", "Professional"};
+        JComboBox<String> modeDropdown = new JComboBox<>(modes);
+        modeDropdown.setSelectedItem("Professional");
+        modeDropdown.setPreferredSize(new Dimension(150, 25));
+        modeDropdown.setFont(new Font("Poppins", Font.PLAIN, 12));
+        modeDropdown.setFocusable(false);
+        headerPanel.add(modeDropdown, BorderLayout.WEST);
+
+        JPanel iconsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 2));
+        iconsPanel.setOpaque(false);
+        JLabel copyLabel1 = createIconLabel("/icons/copy.png", "Copy", project, responsePane);
+        JLabel copyLabel2 = createIconLabel("/icons/copy.png", "Copy Again", project, responsePane);
+        JLabel refreshLabel = createIconLabel("/icons/copy.png", "Refresh", project, responsePane);
+        iconsPanel.add(copyLabel1);
+        iconsPanel.add(copyLabel2);
+        iconsPanel.add(refreshLabel);
+        headerPanel.add(iconsPanel, BorderLayout.EAST);
+        add(headerPanel, BorderLayout.NORTH);
+
+        // === Button Container (Toggle visibility) ===
+        buttonContainer = new JPanel();
+        buttonContainer.setLayout(new BoxLayout(buttonContainer, BoxLayout.Y_AXIS));
+        buttonContainer.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
+        buttonContainer.setVisible(false); // hidden by default
+
+        buttonContainer.add(createCenteredRow("Add Test", "Debugging"));
+        buttonContainer.add(createCenteredRow("Refactor", "Code Review"));
+
+        // Separate row for Documentation
+        JPanel docRow = createCenteredRow("Documentation");
+        buttonContainer.add(docRow);
+
+        // === Footer ===
+        JPanel footerPanel = new JPanel(new BorderLayout(10, 0));
+        footerPanel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+
+        JBTextField inputField = new JBTextField();
+        JButton sendButton = new JButton("Send");
+
+        int inputHeight = 40;
+        inputField.setPreferredSize(new Dimension(0, inputHeight));
+        sendButton.setPreferredSize(new Dimension(100, inputHeight));
+        sendButton.setFont(new Font("Poppins", Font.BOLD, 14));
+
+        footerPanel.add(inputField, BorderLayout.CENTER);
+        footerPanel.add(sendButton, BorderLayout.EAST);
+        footerPanel.setPreferredSize(new Dimension(0, inputHeight + 10));
+
+        // === Wrap both buttonContainer and footer into one panel ===
+        JPanel bottomWrapper = new JPanel();
+        bottomWrapper.setLayout(new BoxLayout(bottomWrapper, BoxLayout.Y_AXIS));
+        bottomWrapper.add(buttonContainer);
+        bottomWrapper.add(footerPanel);
+
+        add(bottomWrapper, BorderLayout.SOUTH);
+
+        // === Send button action ===
+        sendButton.addActionListener(e -> {
+            String userInput = inputField.getText().trim();
+            if (!userInput.isEmpty()) {
+                inputField.setText("");
+                simulateStreamingResponse(userInput, responsePane);
+            } else {
+                Messages.showInfoMessage(project, "Please enter a query.", "Input Required");
+            }
+        });
+
+        // === Copy Again toggle logic ===
+        copyLabel2.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                buttonsVisible = !buttonsVisible;
+                buttonContainer.setVisible(buttonsVisible);
+                revalidate();
+                repaint();
+            }
+        });
+
+        copyLabel1.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                fullHtml = new StringBuilder("<html><body>");       // ✅ reset the HTML structure
+                responsePane.setText("");
+            }
+        });
+    }
+
+    private JLabel createIconLabel(String iconPath, String tooltip, Project project, JTextPane responsePane) {
+        ImageIcon icon = new ImageIcon(getClass().getResource(iconPath));
+        JLabel label = new JLabel(icon);
+        label.setToolTipText(tooltip);
+        label.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        return label;
+    }
+
+    private JPanel createCenteredRow(String... buttonNames) {
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 5));
+        for (String name : buttonNames) {
+            JButton button = new JButton(name);
+            button.setPreferredSize(new Dimension(140, 38));
+            button.setFont(new Font("Poppins", Font.PLAIN, 13));
+            row.add(button);
+        }
+        return row;
+    }
