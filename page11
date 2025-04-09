@@ -655,3 +655,10 @@ public ChatPanel(Project project) {
             }
         });
     }
+
+
+
+
+
+
++ "font-family:\"JetBrains Mono\", Consolas, \"Fira Code\", monospace;"
