@@ -383,3 +383,112 @@ public class ChatPanel extends JPanel {
         return "<div style='margin:2px 0;'>" + line + "</div>";
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+private void streamRealApiResponse(String userInput, JTextPane responsePane) {
+    OkHttpClient client = new OkHttpClient();
+
+    String token = "Bearer YOUR_AUTH_TOKEN"; // 🔐 Replace with your real token
+    String apiUrl = "https://your-api-endpoint.com/stream"; // ✅ Replace with your actual endpoint
+
+    String jsonBody = new JSONObject()
+            .put("prompt", userInput)
+            .put("category_type", "1")
+            .put("session_id", "1")
+            .put("mld_name", "1")
+            .toString();
+
+    RequestBody body = RequestBody.create(jsonBody, MediaType.parse("application/json"));
+
+    Request request = new Request.Builder()
+            .url(apiUrl)
+            .header("Authorization", token)
+            .post(body)
+            .build();
+
+    // Append user input first
+    StringBuilder fullHtml = new StringBuilder("<html><body style='font-family:Poppins, Lato, sans-serif;font-size:14px;color:#e0e0e0;'>");
+    fullHtml.append("<div style='margin-bottom:10px;'><b>User:</b> ").append(userInput).append("</div>");
+
+    client.newCall(request).enqueue(new Callback() {
+        @Override
+        public void onFailure(Call call, IOException e) {
+            e.printStackTrace();
+            SwingUtilities.invokeLater(() -> responsePane.setText("<html><body>Error: " + e.getMessage() + "</body></html>"));
+        }
+
+        @Override
+        public void onResponse(Call call, Response response) {
+            if (!response.isSuccessful()) {
+                System.err.println("Unsuccessful response: " + response);
+                return;
+            }
+
+            StringBuilder newHtmlBlock = new StringBuilder();
+            boolean inCodeBlock = false;
+
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    final String currentLine = line.trim();
+
+                    if (currentLine.startsWith("```")) {
+                        inCodeBlock = !inCodeBlock;
+                        if (inCodeBlock) {
+                            newHtmlBlock.append("<div style='"
+                                    + "background:#1e1e1e;"
+                                    + "color:#dcdcdc;"
+                                    + "border:1px solid #3c3c3c;"
+                                    + "padding:8px;"
+                                    + "margin:6px 0;"
+                                    + "font-family:\"JetBrains Mono\", Consolas, \"Fira Code\", monospace;"
+                                    + "white-space:pre-wrap;"
+                                    + "word-wrap:break-word;'>");
+                        } else {
+                            newHtmlBlock.append("</div>");
+                        }
+                    } else {
+                        if (inCodeBlock) {
+                            newHtmlBlock.append(applyJavaHighlighting(currentLine)).append("<br/>");
+                        } else {
+                            newHtmlBlock.append(applyMarkdown(currentLine));
+                        }
+                    }
+
+                    // Update UI on the EDT
+                    final String updatedContent = fullHtml.toString() + newHtmlBlock + "</body></html>";
+                    SwingUtilities.invokeLater(() -> {
+                        responsePane.setText(updatedContent);
+                        responsePane.setCaretPosition(responsePane.getDocument().getLength());
+                    });
+
+                    Thread.sleep(100); // Optional: slow down to simulate streaming
+                }
+
+                // Finalize HTML content
+                fullHtml.append(newHtmlBlock);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    });
+}
