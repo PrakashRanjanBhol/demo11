@@ -1,0 +1,71 @@
+private JPanel createCenteredRow(String... buttonNames) {
+    JPanel row = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 5));
+    for (String name : buttonNames) {
+        JButton button = new JButton(name);
+        button.setPreferredSize(new Dimension(140, 38));
+        button.setFont(new Font("Poppins", Font.PLAIN, 13));
+
+        // Add action listener for click event
+        button.addActionListener(e -> handleButtonClick(name));
+
+        row.add(button);
+    }
+    return row;
+}
+
+
+
+private void handleButtonClick(String name) {
+    switch (name) {
+        case "Add Test":
+            System.out.println("Add Test button clicked!");
+            // handle Add Test logic
+            break;
+        case "Debugging":
+            System.out.println("Debugging button clicked!");
+            // handle Debugging logic
+            break;
+        case "Refactor":
+            System.out.println("Refactor button clicked!");
+            // handle Refactor logic
+            break;
+        case "Code Review":
+            System.out.println("Code Review button clicked!");
+            // handle Code Review logic
+            break;
+        case "Documentation":
+            System.out.println("Documentation button clicked!");
+            // handle Documentation logic
+            break;
+        default:
+            System.out.println("Unknown button: " + name);
+    }
+}
+
+
+
+ copyLabel2.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                buttonsVisible = !buttonsVisible;
+                buttonContainer.setVisible(buttonsVisible);
+                revalidate();
+                repaint();
+
+                // === Get selected text from active editor ===
+                Project project = com.intellij.openapi.project.ProjectManager.getInstance().getOpenProjects()[0]; // You can improve this if you want current focused project
+                FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);
+                Editor selectedEditor = fileEditorManager.getSelectedTextEditor();
+
+                if (selectedEditor != null) {
+                    String selectedText = selectedEditor.getSelectionModel().getSelectedText();
+                    if (selectedText != null) {
+                        System.out.println("Selected text: " + selectedText);
+                        // You can do further processing here (e.g. copy to clipboard)
+                    } else {
+                        System.out.println("No text selected.");
+                    }
+                } else {
+                    System.out.println("No active text editor.");
+                }
+            }
+        });
