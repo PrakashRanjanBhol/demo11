@@ -1,0 +1,385 @@
+package com.example.demo11;
+
+import com.intellij.openapi.project.Project;
+import com.intellij.openapi.wm.ToolWindow;
+import com.intellij.openapi.wm.ToolWindowFactory;
+import com.intellij.ui.content.Content;
+import com.intellij.ui.content.ContentFactory;
+import org.jetbrains.annotations.NotNull;
+
+import javax.swing.*;
+import java.awt.*;
+
+public class SidepanelFactory implements ToolWindowFactory {
+
+    @Override
+    public void createToolWindowContent(@NotNull Project project, @NotNull ToolWindow toolWindow) {
+        CardLayout cardLayout = new CardLayout();
+        JPanel cardPanel = new JPanel(cardLayout);
+
+        ChatPanel chatPanel = new ChatPanel(project);
+
+        ConnectPanel connectPanel = new ConnectPanel(() -> {
+            cardLayout.show(cardPanel, "chat");
+        });
+
+        cardPanel.add(connectPanel, "connect");
+        cardPanel.add(chatPanel, "chat");
+
+        cardLayout.show(cardPanel, "connect");
+
+        Content content = ContentFactory.getInstance().createContent(cardPanel, "", false);
+        toolWindow.getContentManager().addContent(content);
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ConnectPanel.java
+package com.example.demo11;
+
+import com.intellij.ui.components.JBTextField;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.net.URI;
+
+public class ConnectPanel extends JPanel {
+
+    private static final String API_KEY_URL = "https://example.com/get-api-key"; // Replace with your actual link
+
+    public ConnectPanel(Runnable onConnect) {
+        setLayout(new GridBagLayout());
+        setBackground(Color.WHITE);
+
+        JPanel mainPanel = new JPanel();
+        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
+        mainPanel.setBackground(Color.WHITE);
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 40, 20, 40));
+
+        Font headingFont = new Font("Segoe UI", Font.BOLD, 20);
+        Font subHeadingFont = new Font("Segoe UI", Font.PLAIN, 16);
+        Font consistentFont = new Font("Segoe UI", Font.PLAIN, 16);
+
+        // Logo
+        ImageIcon logoIcon = new ImageIcon(getClass().getResource("/icons/copy.png"));
+        JLabel logoLabel = new JLabel(scaleImageIcon(logoIcon, 100, 100));
+        logoLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        mainPanel.add(logoLabel);
+
+        // Welcome Text
+        JLabel welcomeLabel = new JLabel("Welcome User");
+        welcomeLabel.setFont(headingFont);
+        welcomeLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        mainPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+        mainPanel.add(welcomeLabel);
+
+        // Hello Text
+        JLabel helloLabel = new JLabel("Hello User");
+        helloLabel.setFont(subHeadingFont);
+        helloLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        mainPanel.add(Box.createRigidArea(new Dimension(0, 5)));
+        mainPanel.add(helloLabel);
+
+        // API Key Header
+        JLabel apiKeyHeader = new JLabel("API Key");
+        apiKeyHeader.setFont(headingFont);
+        apiKeyHeader.setAlignmentX(Component.CENTER_ALIGNMENT);
+        mainPanel.add(Box.createRigidArea(new Dimension(0, 20)));
+        mainPanel.add(apiKeyHeader);
+
+        // API Key Input
+        JBTextField apiKeyField = new JBTextField();
+        apiKeyField.getEmptyText().setText("Please enter API Key");
+        apiKeyField.setMaximumSize(new Dimension(300, 36));
+        apiKeyField.setFont(subHeadingFont);
+        apiKeyField.setBackground(new Color(45, 45, 45));
+        apiKeyField.setForeground(Color.WHITE);
+        apiKeyField.setCaretColor(Color.WHITE);
+        apiKeyField.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(80, 80, 80)),
+                BorderFactory.createEmptyBorder(5, 10, 5, 10)
+        ));
+        mainPanel.add(Box.createRigidArea(new Dimension(0, 8)));
+        mainPanel.add(apiKeyField);
+
+        // Connect Button
+        JButton connectButton = new JButton("Connect") {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(getModel().isRollover() ? new Color(80, 140, 220) : new Color(60, 120, 200));
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 10, 10);
+                g2.dispose();
+                super.paintComponent(g);
+            }
+
+            @Override
+            protected void paintBorder(Graphics g) {}
+        };
+        connectButton.setFont(new Font("Poppins", Font.BOLD, 14));
+        connectButton.setForeground(Color.WHITE);
+        connectButton.setFocusPainted(false);
+        connectButton.setContentAreaFilled(false);
+        connectButton.setOpaque(false);
+        connectButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        connectButton.setAlignmentX(Component.CENTER_ALIGNMENT);
+        connectButton.setBorder(BorderFactory.createEmptyBorder(6, 14, 6, 14));
+
+        connectButton.addActionListener(e -> {
+            String apiKey = apiKeyField.getText();
+            if (!apiKey.trim().isEmpty()) {
+                JOptionPane.showMessageDialog(null, "API Key entered: " + apiKey);
+                onConnect.run(); // This triggers the view switch!
+            } else {
+                JOptionPane.showMessageDialog(null, "Please enter a valid API Key.");
+            }
+        });
+
+        mainPanel.add(Box.createRigidArea(new Dimension(0, 12)));
+        mainPanel.add(connectButton);
+
+        // Help Text
+        JLabel helpText = new JLabel("Don't know where to get API Key");
+        helpText.setFont(consistentFont);
+        helpText.setAlignmentX(Component.CENTER_ALIGNMENT);
+        mainPanel.add(Box.createRigidArea(new Dimension(0, 20)));
+        mainPanel.add(helpText);
+
+        // Help Link
+        JLabel linkLabel = new JLabel("<html><div style='text-align:center;'><a href='#' style='color:#4EA1F3;text-decoration:none;font-weight:bold;'>Click</a></div></html>");
+        linkLabel.setFont(consistentFont);
+        linkLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        linkLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        linkLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        linkLabel.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                try {
+                    Desktop.getDesktop().browse(new URI(API_KEY_URL));
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
+        });
+        mainPanel.add(Box.createRigidArea(new Dimension(0, 5)));
+        mainPanel.add(linkLabel);
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.anchor = GridBagConstraints.CENTER;
+        add(mainPanel, gbc);
+    }
+
+    private ImageIcon scaleImageIcon(ImageIcon icon, int width, int height) {
+        Image img = icon.getImage();
+        Image scaled = img.getScaledInstance(width, height, Image.SCALE_SMOOTH);
+        return new ImageIcon(scaled);
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+package com.example.demo11;
+
+import com.intellij.openapi.project.Project;
+import com.intellij.openapi.ui.Messages;
+import com.intellij.openapi.wm.ToolWindow;
+import com.intellij.openapi.wm.ToolWindowFactory;
+import com.intellij.ui.components.JBTextField;
+import com.intellij.ui.content.Content;
+import com.intellij.ui.content.ContentFactory;
+import org.jetbrains.annotations.NotNull;
+
+import javax.swing.*;
+import java.awt.*;
+
+public class ChatPanel extends JPanel {
+
+    private final StringBuilder fullHtml = new StringBuilder(
+            "<html><body style='font-family:sans-serif;'>"
+    );
+
+    public ChatPanel(Project project) {
+        setLayout(new BorderLayout());
+
+        JBTextField inputField = new JBTextField();
+        JButton sendButton = new JButton("Send");
+
+        JPanel inputPanel = new JPanel(new BorderLayout());
+        inputPanel.add(inputField, BorderLayout.CENTER);
+        inputPanel.add(sendButton, BorderLayout.EAST);
+
+        JTextPane responsePane = new JTextPane();
+        responsePane.setContentType("text/html");
+        responsePane.setEditable(false);
+        responsePane.setText(fullHtml + "</body></html>");
+
+        JScrollPane scrollPane = new JScrollPane(responsePane);
+        scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
+
+        add(inputPanel, BorderLayout.NORTH);
+        add(scrollPane, BorderLayout.CENTER);
+
+        sendButton.addActionListener(e -> {
+            String userInput = inputField.getText().trim();
+            if (!userInput.isEmpty()) {
+                inputField.setText("");
+                simulateStreamingResponse(userInput, responsePane);
+            } else {
+                Messages.showInfoMessage(project, "Please enter a query.", "Input Required");
+            }
+        });
+    }
+
+    private void simulateStreamingResponse(String userInput, JTextPane responsePane) {
+        new Thread(() -> {
+            try {
+                String[] simulatedLines = {
+                        "# AI Response",
+                        "Here is an example of **Java code** you asked for:",
+                        "```java",
+                        "public class HelloWorld {",
+                        "    public static void main(String[] args) {",
+                        "        System.out.println(\"Hello, world!\");",
+                        "    }",
+                        "}",
+                        "```",
+                        "Let me know if you want *Python* or *JavaScript* versions.",
+                        "- Easy to use",
+                        "- Fast and clean",
+                        "## Thanks!"
+                };
+
+                StringBuilder newHtmlBlock = new StringBuilder();
+                boolean inCodeBlock = false;
+
+                newHtmlBlock.append("<div style='margin-bottom:10px;'><b>User:</b> ").append(userInput).append("</div>");
+
+                for (String line : simulatedLines) {
+                    Thread.sleep(400); // Simulate streaming
+
+                    if (line.startsWith("```")) {
+                        inCodeBlock = !inCodeBlock;
+                        if (inCodeBlock) {
+                            newHtmlBlock.append("<div style='"
+                                    + "background:#1e1e1e;"
+                                    + "color:#dcdcdc;"
+                                    + "border:1px solid #3c3c3c;"
+                                    + "padding:8px;"
+                                    + "margin:6px 0;"
+                                    + "font-family:\"JetBrains Mono\", Consolas, \"Fira Code\", monospace;"
+                                    + "white-space:pre-wrap;"
+                                    + "word-wrap:break-word;"
+                                    + "'>");
+                        } else {
+                            newHtmlBlock.append("</div>");
+                        }
+                    } else {
+                        if (inCodeBlock) {
+                            newHtmlBlock.append(applyJavaHighlighting(line)).append("<br/>");
+                        } else {
+                            newHtmlBlock.append(applyMarkdown(line));
+                        }
+                    }
+
+                    String currentContent = fullHtml.toString() + newHtmlBlock + "</body></html>";
+                    SwingUtilities.invokeLater(() -> {
+                        responsePane.setText(currentContent);
+                        responsePane.setCaretPosition(responsePane.getDocument().getLength());
+                    });
+                }
+
+                fullHtml.append(newHtmlBlock);
+            } catch (InterruptedException ex) {
+                ex.printStackTrace();
+            }
+        }).start();
+    }
+
+    private String applyJavaHighlighting(String line) {
+        String[] keywords = {
+                "public", "class", "static", "void", "new", "int", "String", "if", "else", "return"
+        };
+
+        line = line.replace("<", "&lt;").replace(">", "&gt;");
+        line = line.replaceAll("\"(.*?)\"", "<span style='color:#ce9178;'>\"$1\"</span>");
+
+        for (String keyword : keywords) {
+            line = line.replaceAll("\\b" + keyword + "\\b",
+                    "<span style='color:#569cd6;font-weight:bold;'>" + keyword + "</span>");
+        }
+
+        if (line.trim().startsWith("//")) {
+            line = "<span style='color:#6a9955;font-style:italic;'>" + line + "</span>";
+        }
+
+        return line;
+    }
+
+    private String applyMarkdown(String line) {
+        line = line.replace("<", "&lt;").replace(">", "&gt;");
+
+        if (line.startsWith("###")) {
+            return "<h3 style='margin:4px 0;'>" + line.substring(3).trim() + "</h3>";
+        } else if (line.startsWith("##")) {
+            return "<h2 style='margin:6px 0;'>" + line.substring(2).trim() + "</h2>";
+        } else if (line.startsWith("#")) {
+            return "<h1 style='margin:8px 0;'>" + line.substring(1).trim() + "</h1>";
+        }
+
+        if (line.trim().startsWith("- ")) {
+            return "<ul style='margin:4px 0;'><li>" + line.trim().substring(2) + "</li></ul>";
+        }
+
+        line = line.replaceAll("\\*\\*(.*?)\\*\\*", "<strong>$1</strong>");
+        line = line.replaceAll("\\*(.*?)\\*", "<em>$1</em>");
+
+        return "<div style='margin:2px 0;'>" + line + "</div>";
+    }
+}
