@@ -600,3 +600,58 @@ public void streamRealApiResponse(String userInput, JTextPane responsePane) {
         }
     });
 }
+
+
+
+
+
+
+
+
+public ChatPanel(Project project) {
+        setLayout(new BorderLayout());
+
+        // === Header ===
+        JPanel headerPanel = new JPanel();
+        headerPanel.setPreferredSize(new Dimension(0, 30));
+        headerPanel.add(new JLabel("Chat Assistant"));
+        add(headerPanel, BorderLayout.NORTH);
+
+        // === Body (Chat area) ===
+        JTextPane responsePane = new JTextPane();
+        responsePane.setContentType("text/html");
+        responsePane.setEditable(false);
+        responsePane.setText(fullHtml + "</body></html>");
+
+        JScrollPane scrollPane = new JScrollPane(responsePane);
+        scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
+        add(scrollPane, BorderLayout.CENTER);
+
+        // === Footer (Input area) ===
+        JBTextField inputField = new JBTextField();
+        JButton sendButton = new JButton("Send");
+
+        // Set preferred height
+        int inputHeight = 40;
+        inputField.setPreferredSize(new Dimension(0, inputHeight));
+        sendButton.setPreferredSize(new Dimension(80, inputHeight)); // wider and taller button
+
+        JPanel inputPanel = new JPanel(new BorderLayout(10, 0)); // horizontal gap between field and button
+        inputPanel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10)); // padding
+        inputPanel.add(inputField, BorderLayout.CENTER);
+        inputPanel.add(sendButton, BorderLayout.EAST);
+        inputPanel.setPreferredSize(new Dimension(0, inputHeight + 10)); // include vertical padding
+
+        add(inputPanel, BorderLayout.SOUTH);
+
+        // === Button Action ===
+        sendButton.addActionListener(e -> {
+            String userInput = inputField.getText().trim();
+            if (!userInput.isEmpty()) {
+                inputField.setText("");
+                simulateStreamingResponse(userInput, responsePane);
+            } else {
+                Messages.showInfoMessage(project, "Please enter a query.", "Input Required");
+            }
+        });
+    }
