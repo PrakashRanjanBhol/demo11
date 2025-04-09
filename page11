@@ -662,3 +662,8 @@ public ChatPanel(Project project) {
 
 
 + "font-family:\"JetBrains Mono\", Consolas, \"Fira Code\", monospace;"
+
+
+
+
+font-family: "JetBrains Mono", "Fira Code", "Consolas", "Courier New", monospace;
