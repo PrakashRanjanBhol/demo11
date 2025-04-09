@@ -122,3 +122,23 @@
         }
         return row;
     }
+
+
+
+
+
+
+private JLabel createIconLabel(String iconPath, String tooltip, Project project, JTextPane responsePane) {
+    ImageIcon originalIcon = new ImageIcon(getClass().getResource(iconPath));
+    
+    // Resize the image to desired width and height
+    int width = 16;  // desired width
+    int height = 16; // desired height
+    Image scaledImage = originalIcon.getImage().getScaledInstance(width, height, Image.SCALE_SMOOTH);
+    
+    ImageIcon scaledIcon = new ImageIcon(scaledImage);
+    JLabel label = new JLabel(scaledIcon);
+    label.setToolTipText(tooltip);
+    label.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+    return label;
+}
