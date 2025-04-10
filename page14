@@ -1,0 +1,364 @@
+package com.example.demo11;
+
+import com.intellij.openapi.project.Project;
+import com.intellij.openapi.ui.Messages;
+import com.intellij.openapi.wm.ToolWindow;
+import com.intellij.openapi.wm.ToolWindowFactory;
+import com.intellij.ui.components.JBTextField;
+import com.intellij.ui.content.Content;
+import com.intellij.ui.content.ContentFactory;
+import org.jetbrains.annotations.NotNull;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.net.URL;
+
+public class ChatPanel extends JPanel {
+
+    private StringBuilder fullHtml = new StringBuilder(
+            "<html><body style='font-family:sans-serif;'>"
+    );
+
+    private boolean buttonsVisible = false;
+    private boolean isInRefreshMode = false;
+
+    private final JPanel buttonContainer;
+    private final JPanel bodyPanel;
+    private final JScrollPane scrollPane;
+    private final JPanel refreshContainer;
+    private final JPanel headerPanel;
+    private final JPanel bottomWrapper;
+    private final JLabel backLabel;
+    private final JComboBox<String> modeDropdown;
+    private final JLabel chatHistoryLabel;
+
+    public ChatPanel(Project project) {
+        setLayout(new BorderLayout());
+
+        // === Chat area ===
+        JTextPane responsePane = new JTextPane();
+        responsePane.setContentType("text/html");
+        responsePane.setEditable(false);
+        responsePane.setText(fullHtml + "</body></html>");
+
+        scrollPane = new JScrollPane(responsePane);
+        scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
+
+        // === Refresh container ===
+        refreshContainer = new JPanel(new BorderLayout());
+        refreshContainer.add(new JLabel("🔄 Refresh Mode Content", SwingConstants.CENTER), BorderLayout.CENTER);
+
+        // === Body panel ===
+        bodyPanel = new JPanel(new CardLayout());
+        bodyPanel.add(scrollPane, "default");
+        bodyPanel.add(refreshContainer, "refresh");
+        add(bodyPanel, BorderLayout.CENTER);
+
+        // === Header ===
+        headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setPreferredSize(new Dimension(0, 30));
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(0, 10, 0, 10));
+
+        String[] modes = {"Simple", "Professional"};
+        modeDropdown = new JComboBox<>(modes);
+        modeDropdown.setSelectedItem("Professional");
+        modeDropdown.setPreferredSize(new Dimension(150, 25));
+        modeDropdown.setFont(new Font("Poppins", Font.PLAIN, 12));
+        modeDropdown.setFocusable(false);
+
+        chatHistoryLabel = new JLabel("Chat History");
+        chatHistoryLabel.setFont(new Font("Poppins", Font.BOLD, 13));
+        chatHistoryLabel.setVisible(false);
+
+        JPanel leftHeader = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 2));
+        leftHeader.setOpaque(false);
+        leftHeader.add(modeDropdown);
+        leftHeader.add(chatHistoryLabel);
+
+        headerPanel.add(leftHeader, BorderLayout.WEST);
+
+        JPanel iconsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 2));
+        iconsPanel.setOpaque(false);
+        JLabel copyLabel1 = createIconLabel("/icons/copy.png", "Copy", project, responsePane);
+        JLabel copyLabel2 = createIconLabel("/icons/copy.png", "Copy Again", project, responsePane);
+        JLabel refreshLabel = createIconLabel("/icons/copy.png", "Refresh", project, responsePane);
+        backLabel = createIconLabel("/icons/copy.png", "Back", project, responsePane);
+        backLabel.setVisible(false);
+
+        iconsPanel.add(copyLabel1);
+        iconsPanel.add(copyLabel2);
+        iconsPanel.add(refreshLabel);
+        iconsPanel.add(backLabel);
+
+        headerPanel.add(iconsPanel, BorderLayout.EAST);
+        add(headerPanel, BorderLayout.NORTH);
+
+        // === Toggle Button Container ===
+        buttonContainer = new JPanel();
+        buttonContainer.setLayout(new BoxLayout(buttonContainer, BoxLayout.Y_AXIS));
+        buttonContainer.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
+        buttonContainer.setVisible(false);
+
+        buttonContainer.add(createCenteredRow("Add Test", "Debugging"));
+        buttonContainer.add(createCenteredRow("Refactor", "Code Review"));
+        buttonContainer.add(createCenteredRow("Documentation"));
+
+        // === Footer ===
+        JPanel footerPanel = new JPanel(new BorderLayout(10, 0));
+        footerPanel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+
+        JBTextField inputField = new JBTextField();
+        JButton sendButton = new JButton("Send");
+
+        int inputHeight = 40;
+        inputField.setPreferredSize(new Dimension(0, inputHeight));
+        sendButton.setPreferredSize(new Dimension(100, inputHeight));
+        sendButton.setFont(new Font("Poppins", Font.BOLD, 14));
+
+        footerPanel.add(inputField, BorderLayout.CENTER);
+        footerPanel.add(sendButton, BorderLayout.EAST);
+        footerPanel.setPreferredSize(new Dimension(0, inputHeight + 10));
+
+        bottomWrapper = new JPanel();
+        bottomWrapper.setLayout(new BoxLayout(bottomWrapper, BoxLayout.Y_AXIS));
+        bottomWrapper.add(buttonContainer);
+        bottomWrapper.add(footerPanel);
+
+        add(bottomWrapper, BorderLayout.SOUTH);
+
+        // === Send action ===
+        sendButton.addActionListener(e -> {
+            String userInput = inputField.getText().trim();
+            if (!userInput.isEmpty()) {
+                inputField.setText("");
+                simulateStreamingResponse(userInput, responsePane);
+            } else {
+                Messages.showInfoMessage(project, "Please enter a query.", "Input Required");
+            }
+        });
+
+        // === Toggle Buttons ===
+        copyLabel2.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent evt) {
+                buttonsVisible = !buttonsVisible;
+                buttonContainer.setVisible(buttonsVisible);
+                revalidate();
+                repaint();
+            }
+        });
+
+        // === Clear content ===
+        copyLabel1.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent evt) {
+                fullHtml = new StringBuilder("<html><body>");
+                responsePane.setText("");
+            }
+        });
+
+        // === Enter refresh mode ===
+        refreshLabel.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent evt) {
+                isInRefreshMode = true;
+                switchMode();
+            }
+        });
+
+        // === Exit refresh mode ===
+        backLabel.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent evt) {
+                isInRefreshMode = false;
+                switchMode();
+            }
+        });
+    }
+
+    private void switchMode() {
+        CardLayout cl = (CardLayout) bodyPanel.getLayout();
+
+        if (isInRefreshMode) {
+            cl.show(bodyPanel, "refresh");
+            buttonContainer.setVisible(false);
+            bottomWrapper.setVisible(false);
+            backLabel.setVisible(true);
+            toggleHeaderIcons(false);
+            modeDropdown.setVisible(false);
+            chatHistoryLabel.setVisible(true);
+        } else {
+            cl.show(bodyPanel, "default");
+            bottomWrapper.setVisible(true);
+            backLabel.setVisible(false);
+            toggleHeaderIcons(true);
+            modeDropdown.setVisible(true);
+            chatHistoryLabel.setVisible(false);
+        }
+
+        revalidate();
+        repaint();
+    }
+
+    private void toggleHeaderIcons(boolean showAll) {
+        for (Component comp : ((JPanel) ((BorderLayout) headerPanel.getLayout()).getLayoutComponent(BorderLayout.EAST)).getComponents()) {
+            if (comp != backLabel) {
+                comp.setVisible(showAll);
+            }
+        }
+    }
+    
+    private JLabel createIconLabel(String iconPath, String tooltip, Project project, JTextPane responsePane) {
+        ImageIcon icon = new ImageIcon(getClass().getResource(iconPath));
+        JLabel label = new JLabel(icon);
+        label.setToolTipText(tooltip);
+        label.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        return label;
+    }
+
+    private JPanel createCenteredRow(String... buttonNames) {
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 5));
+        for (String name : buttonNames) {
+            JButton button = new JButton(name);
+            button.setPreferredSize(new Dimension(140, 38));
+            button.setFont(new Font("Poppins", Font.PLAIN, 13));
+
+            // Add action listener for click event
+            button.addActionListener(e -> handleButtonClick(name));
+
+            row.add(button);
+        }
+        return row;
+    }
+
+    private void handleButtonClick(String name) {
+        switch (name) {
+            case "Add Test":
+                System.out.println("Add Test button clicked!");
+                // handle Add Test logic
+                break;
+            case "Debugging":
+                System.out.println("Debugging button clicked!");
+                // handle Debugging logic
+                break;
+            case "Refactor":
+                System.out.println("Refactor button clicked!");
+                // handle Refactor logic
+                break;
+            case "Code Review":
+                System.out.println("Code Review button clicked!");
+                // handle Code Review logic
+                break;
+            case "Documentation":
+                System.out.println("Documentation button clicked!");
+                // handle Documentation logic
+                break;
+            default:
+                System.out.println("Unknown button: " + name);
+        }
+    }
+
+    private void simulateStreamingResponse(String userInput, JTextPane responsePane) {
+        new Thread(() -> {
+            try {
+                String[] simulatedLines = {
+                        "# AI Response",
+                        "Here is an example of **Java code** you asked for:",
+                        "```java",
+                        "public class HelloWorld {",
+                        "    public static void main(String[] args) {",
+                        "        System.out.println(\"Hello, world!\");",
+                        "    }",
+                        "}",
+                        "```",
+                        "Let me know if you want *Python* or *JavaScript* versions.",
+                        "- Easy to use",
+                        "- Fast and clean",
+                        "## Thanks!"
+                };
+
+                StringBuilder newHtmlBlock = new StringBuilder();
+                boolean inCodeBlock = false;
+
+                newHtmlBlock.append("<div style='margin-bottom:10px; background-color: red;'><b>User:</b> ").append(userInput).append("</div>");
+
+                for (String line : simulatedLines) {
+                    Thread.sleep(400); // Simulate streaming
+
+                    if (line.startsWith("```")) {
+                        inCodeBlock = !inCodeBlock;
+                        if (inCodeBlock) {
+                            newHtmlBlock.append("<div style='"
+                                    + "background:#1e1e1e;"
+                                    + "color:#dcdcdc;"
+                                    + "border:1px solid #3c3c3c;"
+                                    + "padding:8px;"
+                                    + "margin:6px 0;"
+                                    + "font-family:\"JetBrains Mono\", Consolas, \"Fira Code\", monospace;"
+                                    + "white-space:pre-wrap;"
+                                    + "word-wrap:break-word;"
+                                    + "'>");
+                        } else {
+                            newHtmlBlock.append("</div>");
+                        }
+                    } else {
+                        if (inCodeBlock) {
+                            newHtmlBlock.append(applyJavaHighlighting(line)).append("<br/>");
+                        } else {
+                            newHtmlBlock.append(applyMarkdown(line));
+                        }
+                    }
+
+                    String currentContent = fullHtml.toString() + newHtmlBlock + "</body></html>";
+                    SwingUtilities.invokeLater(() -> {
+                        responsePane.setText(currentContent);
+                        responsePane.setCaretPosition(responsePane.getDocument().getLength());
+                    });
+                }
+
+                fullHtml.append(newHtmlBlock);
+            } catch (InterruptedException ex) {
+                ex.printStackTrace();
+            }
+        }).start();
+    }
+
+    private String applyJavaHighlighting(String line) {
+        String[] keywords = {
+                "public", "class", "static", "void", "new", "int", "String", "if", "else", "return"
+        };
+
+        line = line.replace("<", "&lt;").replace(">", "&gt;");
+        line = line.replaceAll("\"(.*?)\"", "<span style='color:#ce9178;'>\"$1\"</span>");
+
+        for (String keyword : keywords) {
+            line = line.replaceAll("\\b" + keyword + "\\b",
+                    "<span style='color:#569cd6;font-weight:bold;'>" + keyword + "</span>");
+        }
+
+        if (line.trim().startsWith("//")) {
+            line = "<span style='color:#6a9955;font-style:italic;'>" + line + "</span>";
+        }
+
+        return line;
+    }
+
+    private String applyMarkdown(String line) {
+        line = line.replace("<", "&lt;").replace(">", "&gt;");
+
+        if (line.startsWith("###")) {
+            return "<h3 style='margin:4px 0;'>" + line.substring(3).trim() + "</h3>";
+        } else if (line.startsWith("##")) {
+            return "<h2 style='margin:6px 0;'>" + line.substring(2).trim() + "</h2>";
+        } else if (line.startsWith("#")) {
+            return "<h1 style='margin:8px 0;'>" + line.substring(1).trim() + "</h1>";
+        }
+
+        if (line.trim().startsWith("- ")) {
+            return "<ul style='margin:4px 0;'><li>" + line.trim().substring(2) + "</li></ul>";
+        }
+
+        line = line.replaceAll("\\*\\*(.*?)\\*\\*", "<strong>$1</strong>");
+        line = line.replaceAll("\\*(.*?)\\*", "<em>$1</em>");
+
+        return "<div style='margin:2px 0;'>" + line + "</div>";
+    }
+}
