@@ -1,26 +1,22 @@
 package com.example.demo11;
 
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.wm.ToolWindow;
-import com.intellij.openapi.wm.ToolWindowFactory;
-import com.intellij.ui.content.Content;
-import com.intellij.ui.content.ContentFactory;
-import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import java.awt.*;
 
-public class SidepanelFactory implements ToolWindowFactory {
+public class ChatPanel extends JPanel {
 
-    @Override
-    public void createToolWindowContent(@NotNull Project project, @NotNull ToolWindow toolWindow) {
-        JPanel parentPanel = new JPanel(new BorderLayout());
+    private final JTextPane textPane;
 
-        // Child panel to hold the text content
+    public ChatPanel(Project project) {
+        super(new BorderLayout());
+
+        // Create a child panel (optional for layout grouping)
         JPanel childPanel = new JPanel(new BorderLayout());
 
-        // Create a custom JTextPane that wraps HTML properly
-        JTextPane textPane = new JTextPane() {
+        // Custom JTextPane that wraps HTML properly
+        textPane = new JTextPane() {
             @Override
             public boolean getScrollableTracksViewportWidth() {
                 return getUI().getPreferredSize(this).width <= getParent().getSize().width;
@@ -50,11 +46,11 @@ public class SidepanelFactory implements ToolWindowFactory {
         scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
 
         childPanel.add(scrollPane, BorderLayout.CENTER);
-        parentPanel.add(childPanel, BorderLayout.CENTER);
+        this.add(childPanel, BorderLayout.CENTER);
+    }
 
-        // Add to tool window content
-        ContentFactory contentFactory = ContentFactory.getInstance();
-        Content content = contentFactory.createContent(parentPanel, "", false);
-        toolWindow.getContentManager().addContent(content);
+    // Optional: method to dynamically append HTML later
+    public void appendHtml(String html) {
+        textPane.setText(textPane.getText().replace("</body></html>", html + "</body></html>"));
     }
 }
