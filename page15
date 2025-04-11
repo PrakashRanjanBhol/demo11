@@ -1,0 +1,60 @@
+package com.example.demo11;
+
+import com.intellij.openapi.project.Project;
+import com.intellij.openapi.wm.ToolWindow;
+import com.intellij.openapi.wm.ToolWindowFactory;
+import com.intellij.ui.content.Content;
+import com.intellij.ui.content.ContentFactory;
+import org.jetbrains.annotations.NotNull;
+
+import javax.swing.*;
+import java.awt.*;
+
+public class SidepanelFactory implements ToolWindowFactory {
+
+    @Override
+    public void createToolWindowContent(@NotNull Project project, @NotNull ToolWindow toolWindow) {
+        JPanel parentPanel = new JPanel(new BorderLayout());
+
+        // Child panel to hold the text content
+        JPanel childPanel = new JPanel(new BorderLayout());
+
+        // Create a custom JTextPane that wraps HTML properly
+        JTextPane textPane = new JTextPane() {
+            @Override
+            public boolean getScrollableTracksViewportWidth() {
+                return getUI().getPreferredSize(this).width <= getParent().getSize().width;
+            }
+        };
+        textPane.setContentType("text/html");
+        textPane.setEditable(false);
+
+        // Sample HTML content
+        String htmlContent = """
+                <html>
+                    <body style='width: 100%; font-family: sans-serif; font-size: 13px;'>
+                        <h2 style='color: #40a9ff;'>Welcome to AI Assistant</h2>
+                        <p>
+                            This is a sample paragraph that should wrap neatly within the panel
+                            without causing horizontal scrollbars, even if it's very long. You can keep
+                            appending HTML content dynamically as needed.
+                        </p>
+                    </body>
+                </html>
+                """;
+
+        textPane.setText(htmlContent);
+
+        JScrollPane scrollPane = new JScrollPane(textPane);
+        scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
+
+        childPanel.add(scrollPane, BorderLayout.CENTER);
+        parentPanel.add(childPanel, BorderLayout.CENTER);
+
+        // Add to tool window content
+        ContentFactory contentFactory = ContentFactory.getInstance();
+        Content content = contentFactory.createContent(parentPanel, "", false);
+        toolWindow.getContentManager().addContent(content);
+    }
+}
