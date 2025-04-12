@@ -1,0 +1,412 @@
+private JTextArea currentCodeArea = null;
+
+    private void simulateStreamingResponse(String userInput) {
+        new Thread(() -> {
+            try {
+                String[] lines = {
+                        "# AI Response",
+                        "Here is a code snippet:",
+                        "```java",
+                        "public class HelloWorld {",
+                        "    public static void main(String[] args) {",
+                        "        System.out.println(\"Hello, world!\");",
+                        "    }",
+                        "}",
+                        "```",
+                        "Here is a Python code snippet:",
+                        "```java",
+                        "public class HelloWorldPython {",
+                        "    public static void main(String[] args) {",
+                        "        System.out.println(\"Hello, world! Python\");",
+                        "    }",
+                        "}",
+                        "```",
+                };
+
+                SwingUtilities.invokeLater(() -> {
+                    appendStyledText("User", userInput, false, true);
+                    appendGap();
+                    appendStyledText("AI Response", "Here is the AI's response to your query.", false, false);
+                });
+
+                boolean insideCodeBlock = false;
+
+                for (String line : lines) {
+                    Thread.sleep(400);
+
+                    if (line.startsWith("```")) {
+                        if (insideCodeBlock) {
+                            insideCodeBlock = false;
+                            currentCodeArea = null;
+                        } else {
+                            insideCodeBlock = true;
+                            SwingUtilities.invokeLater(() -> createStreamingCodeBlockPanel());
+                        }
+                    } else if (insideCodeBlock) {
+                        String codeLine = line + "\n";
+                        SwingUtilities.invokeLater(() -> appendCodeLineToCurrentBlock(codeLine));
+                    } else {
+                        String finalLine = line;
+                        SwingUtilities.invokeLater(() -> appendStyledText("", finalLine, false, false));
+                    }
+                }
+
+                SwingUtilities.invokeLater(this::appendRatingStars);
+
+            } catch (InterruptedException ex) {
+                ex.printStackTrace();
+            }
+        }).start();
+    }
+
+    private void createStreamingCodeBlockPanel() {
+        JTextArea codeArea = new JTextArea();
+        codeArea.setEditable(false);
+        codeArea.setFont(new Font("Consolas", Font.PLAIN, 14));
+        codeArea.setBackground(new Color(40, 44, 52));
+        codeArea.setForeground(Color.WHITE);
+        codeArea.setCaretPosition(0);
+
+        // Set it as the current one for streaming
+        currentCodeArea = codeArea;
+        currentCodeArea.setEditable(false);
+        currentCodeArea.setFont(new Font("Consolas", Font.PLAIN, 14));
+        currentCodeArea.setBackground(new Color(40, 44, 52));
+        currentCodeArea.setForeground(Color.WHITE);
+        currentCodeArea.setCaretPosition(0);
+
+        JScrollPane codeScroll = new JScrollPane(currentCodeArea);
+
+        JPanel codePanel = new JPanel(new BorderLayout());
+        codePanel.add(codeScroll, BorderLayout.CENTER);
+
+        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 5));
+        JLabel copyIcon = new JLabel(new ImageIcon(getClass().getResource("/icons/copy.png")));
+        JLabel insertIcon = new JLabel(new ImageIcon(getClass().getResource("/icons/copy.png")));
+
+        copyIcon.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        insertIcon.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+        copyIcon.setToolTipText("Copy Code");
+        insertIcon.setToolTipText("Insert Code into Editor");
+
+        insertIcon.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent evt) {
+                // insertCodeIntoActiveEditor(currentCodeArea.getText());
+            }
+        });
+
+        copyIcon.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent evt) {
+                StringSelection stringSelection = new StringSelection(codeArea.getText());
+                Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+                clipboard.setContents(stringSelection, null);
+            }
+        });
+
+        topPanel.add(copyIcon);
+        topPanel.add(insertIcon);
+        codePanel.add(topPanel, BorderLayout.NORTH);
+
+        Style style = styledDocument.addStyle("streamingCodeBlock", null);
+        StyleConstants.setComponent(style, codePanel);
+        try {
+            styledDocument.insertString(styledDocument.getLength(), "ignored", style);
+            styledDocument.insertString(styledDocument.getLength(), "\n", null);
+        } catch (BadLocationException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void appendCodeLineToCurrentBlock(String line) {
+        if (currentCodeArea != null) {
+            currentCodeArea.append(line);
+            currentCodeArea.setCaretPosition(currentCodeArea.getDocument().getLength());
+        }
+    }
+
+
+    private void appendStyledText(String label, String text, boolean isCodeBlock, boolean isUserQuery) {
+        try {
+            JPanel containerPanel = new JPanel();
+            containerPanel.setLayout(new BoxLayout(containerPanel, BoxLayout.Y_AXIS));
+            if (isUserQuery) {
+                containerPanel.setBorder(BorderFactory.createLineBorder(Color.BLUE, 2));
+            } else {
+                containerPanel.setBorder(BorderFactory.createLineBorder(Color.GREEN, 2));
+            }
+
+            if (!label.isEmpty()) {
+                SimpleAttributeSet labelAttr = new SimpleAttributeSet();
+                StyleConstants.setFontFamily(labelAttr, "Poppins");
+                StyleConstants.setFontSize(labelAttr, 16);
+                StyleConstants.setBold(labelAttr, true);
+                StyleConstants.setForeground(labelAttr, Color.BLUE);
+                styledDocument.insertString(styledDocument.getLength(), label + ":\n", labelAttr);
+            }
+
+            if (isCodeBlock) {
+                JPanel codeBlockPanel = createCodeBlockPanel(text);
+                Style style = styledDocument.addStyle("codeStyle", null);
+                StyleConstants.setComponent(style, codeBlockPanel);
+                styledDocument.insertString(styledDocument.getLength(), "ignored", style);
+                styledDocument.insertString(styledDocument.getLength(), "\n", null);
+            } else {
+                SimpleAttributeSet textAttr = new SimpleAttributeSet();
+                StyleConstants.setFontFamily(textAttr, "Poppins");
+                StyleConstants.setFontSize(textAttr, 14);
+                styledDocument.insertString(styledDocument.getLength(), text + "\n", textAttr);
+            }
+
+            responseArea.setCaretPosition(styledDocument.getLength());
+        } catch (BadLocationException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void appendGap() {
+        try {
+            SimpleAttributeSet gapAttr = new SimpleAttributeSet();
+            styledDocument.insertString(styledDocument.getLength(), "\n\n", gapAttr);
+        } catch (BadLocationException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private JPanel createCodeBlockPanel(String codeContent) {
+        JPanel codePanel = new JPanel(new BorderLayout());
+        JTextArea codeArea = new JTextArea(codeContent);
+        codeArea.setEditable(false);
+        codeArea.setFont(new Font("Consolas", Font.PLAIN, 14));
+        codeArea.setBackground(new Color(40, 44, 52));
+        codeArea.setForeground(Color.WHITE);
+        codeArea.setCaretPosition(0);
+
+        JScrollPane codeScroll = new JScrollPane(codeArea);
+        codePanel.add(codeScroll, BorderLayout.CENTER);
+
+        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 5));
+        JLabel copyIcon = new JLabel(new ImageIcon(getClass().getResource("/icons/copy.png")));
+        JLabel insertIcon = new JLabel(new ImageIcon(getClass().getResource("/icons/copy.png")));
+
+        copyIcon.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        insertIcon.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+        copyIcon.setToolTipText("Copy Code");
+        insertIcon.setToolTipText("Insert Code into Editor");
+
+        insertIcon.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent evt) {
+//            insertCodeIntoActiveEditor(codeContent);
+            }
+        });
+
+        copyIcon.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent evt) {
+                StringSelection stringSelection = new StringSelection(codeContent);
+                Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+                clipboard.setContents(stringSelection, null);
+            }
+        });
+
+        topPanel.add(copyIcon);
+        topPanel.add(insertIcon);
+        codePanel.add(topPanel, BorderLayout.NORTH);
+
+        return codePanel;
+    }
+
+    private void appendRatingStars() {
+        SwingUtilities.invokeLater(() -> {
+            JPanel ratingPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 2));
+            ratingPanel.setOpaque(false); // Transparent background
+
+            JLabel[] stars = new JLabel[5];
+            int[] rating = {0};
+
+            Icon starEmpty = new ImageIcon(getClass().getResource("/icons/star_empty.png"));
+            Icon starFilled = new ImageIcon(getClass().getResource("/icons/star_filled.png"));
+
+            for (int i = 0; i < 5; i++) {
+                final int index = i;
+                stars[i] = new JLabel(starEmpty);
+                stars[i].setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                stars[i].addMouseListener(new MouseAdapter() {
+                    public void mouseClicked(MouseEvent e) {
+                        rating[0] = index + 1;
+                        for (int j = 0; j < 5; j++) {
+                            stars[j].setIcon(j <= index ? starFilled : starEmpty);
+                        }
+                    }
+                });
+                ratingPanel.add(stars[i]);
+            }
+
+            // Feedback Icon
+            JLabel feedbackIcon = new JLabel(new ImageIcon(getClass().getResource("/icons/copy.png")));
+            feedbackIcon.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            ratingPanel.add(Box.createHorizontalStrut(10)); // gap between stars and icon
+            ratingPanel.add(feedbackIcon);
+
+            // Feedback Panel
+            JPanel feedbackPanel = new JPanel(new BorderLayout(5, 5));
+            feedbackPanel.setVisible(false);
+            feedbackPanel.setOpaque(false); // Transparent background
+            feedbackPanel.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(Color.GRAY),
+                    BorderFactory.createEmptyBorder(8, 8, 8, 8) // top, left, bottom, right padding
+            ));
+
+            JLabel feedbackLabel = new JLabel("Feedback");
+            feedbackLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
+
+            JTextArea feedbackArea = new JTextArea(3, 30);
+            feedbackArea.setLineWrap(true);
+            feedbackArea.setWrapStyleWord(true);
+            JScrollPane scrollPane = new JScrollPane(feedbackArea);
+
+            JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+            buttonsPanel.setOpaque(false); // Transparent
+            JButton submitButton = new JButton("Submit");
+            JButton cancelButton = new JButton("Cancel");
+            buttonsPanel.add(submitButton);
+            buttonsPanel.add(cancelButton);
+
+            feedbackPanel.add(feedbackLabel, BorderLayout.NORTH);
+            feedbackPanel.add(scrollPane, BorderLayout.CENTER);
+            feedbackPanel.add(buttonsPanel, BorderLayout.SOUTH);
+
+            // Show on icon click
+            feedbackIcon.addMouseListener(new MouseAdapter() {
+                public void mouseClicked(MouseEvent e) {
+                    feedbackPanel.setVisible(true);
+                    responseArea.revalidate();
+                }
+            });
+
+            cancelButton.addActionListener(e -> feedbackPanel.setVisible(false));
+
+            submitButton.addActionListener(e -> {
+                String feedback = feedbackArea.getText().trim();
+                if (!feedback.isEmpty()) {
+                    System.out.println("User feedback: " + feedback);
+                }
+                feedbackPanel.setVisible(false);
+            });
+
+            // Add to document
+            Style ratingStyle = styledDocument.addStyle("ratingStyle", null);
+            StyleConstants.setComponent(ratingStyle, ratingPanel);
+            try {
+                styledDocument.insertString(styledDocument.getLength(), "ignored", ratingStyle);
+                styledDocument.insertString(styledDocument.getLength(), "\n", null);
+
+                JPanel feedbackLine = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+                feedbackLine.setOpaque(false); // Transparent background
+                feedbackLine.add(feedbackPanel);
+
+                Style feedbackStyle = styledDocument.addStyle("feedbackStyle", null);
+                StyleConstants.setComponent(feedbackStyle, feedbackLine);
+                styledDocument.insertString(styledDocument.getLength(), "ignored", feedbackStyle);
+                styledDocument.insertString(styledDocument.getLength(), "\n", null);
+            } catch (BadLocationException ex) {
+                ex.printStackTrace();
+            }
+        });
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+private void simulateStreamingResponse(String userInput) {
+    new Thread(() -> {
+        try {
+            SwingUtilities.invokeLater(() -> {
+                appendStyledText("User", userInput, false, true);
+                appendGap();
+                appendStyledText("AI Response", "Here is the AI's response to your query.", false, false);
+            });
+
+            String token = "Bearer YOUR_AUTH_TOKEN"; // 🔐 Replace with real token
+            String apiUrl = "https://your-api-endpoint.com/stream"; // ✅ Replace with real endpoint
+
+            String jsonBody = new JSONObject()
+                    .put("prompt", userInput)
+                    .put("category_type", "1")
+                    .put("session_id", "1")
+                    .put("mld_name", "1")
+                    .toString();
+
+            OkHttpClient client = new OkHttpClient();
+
+            RequestBody body = RequestBody.create(jsonBody, MediaType.parse("application/json"));
+
+            Request request = new Request.Builder()
+                    .url(apiUrl)
+                    .header("Authorization", token)
+                    .post(body)
+                    .build();
+
+            client.newCall(request).enqueue(new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    e.printStackTrace();
+                }
+
+                @Override
+                public void onResponse(Call call, Response response) {
+                    if (!response.isSuccessful()) {
+                        System.err.println("Unsuccessful response: " + response);
+                        return;
+                    }
+
+                    boolean insideCodeBlock = false;
+
+                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream()))) {
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            String finalLine = line;
+
+                            if (finalLine.trim().startsWith("```")) {
+                                insideCodeBlock = !insideCodeBlock;
+
+                                if (insideCodeBlock) {
+                                    SwingUtilities.invokeLater(() -> createStreamingCodeBlockPanel());
+                                } else {
+                                    SwingUtilities.invokeLater(() -> currentCodeArea = null);
+                                }
+                            } else if (insideCodeBlock) {
+                                SwingUtilities.invokeLater(() -> appendCodeLineToCurrentBlock(finalLine + "\n"));
+                            } else {
+                                SwingUtilities.invokeLater(() -> appendStyledText("", finalLine, false, false));
+                            }
+
+                            Thread.sleep(400); // Simulate stream effect
+                        }
+
+                        SwingUtilities.invokeLater(() -> appendRatingStars());
+
+                    } catch (IOException | InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }).start();
+}
