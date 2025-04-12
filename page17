@@ -403,3 +403,100 @@ public class ChatPanel extends JPanel {
         return codePanel;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+private void simulateStreamingResponse(String userInput) {
+    new Thread(() -> {
+        try {
+            String token = "Bearer YOUR_AUTH_TOKEN"; // 🔐 Replace with your real token
+            String apiUrl = "https://your-api-endpoint.com/stream"; // ✅ Replace with your actual endpoint
+
+            String jsonBody = new JSONObject()
+                    .put("prompt", userInput)
+                    .put("category_type", "1")
+                    .put("session_id", "1")
+                    .put("mld_name", "1")
+                    .toString();
+
+            OkHttpClient client = new OkHttpClient();
+            RequestBody body = RequestBody.create(jsonBody, MediaType.parse("application/json"));
+            Request request = new Request.Builder()
+                    .url(apiUrl)
+                    .header("Authorization", token)
+                    .post(body)
+                    .build();
+
+            client.newCall(request).enqueue(new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    e.printStackTrace();
+                }
+
+                @Override
+                public void onResponse(Call call, Response response) {
+                    if (!response.isSuccessful()) {
+                        System.err.println("Unsuccessful response: " + response);
+                        return;
+                    }
+
+                    // Appending User label and query inside a bordered panel
+                    SwingUtilities.invokeLater(() -> appendStyledText("User", userInput, false, true));
+
+                    // Add a gap between the User query and AI response
+                    SwingUtilities.invokeLater(() -> appendGap());
+
+                    // Appending AI Response label and response inside a bordered panel
+                    SwingUtilities.invokeLater(() -> appendStyledText("AI Response", "Here is the AI's response to your query.", false, false));
+
+                    boolean insideCodeBlock = false;
+                    StringBuilder codeBuffer = new StringBuilder();
+
+                    // Process the response stream line by line
+                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream()))) {
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            Thread.sleep(400); // Simulate delay for each chunk
+
+                            if (line.startsWith("```")) {
+                                if (insideCodeBlock) {
+                                    // Closing block, render code
+                                    String codeContent = codeBuffer.toString();
+                                    SwingUtilities.invokeLater(() -> appendStyledText("", codeContent, true, false));
+                                    codeBuffer.setLength(0);
+                                    insideCodeBlock = false;
+                                } else {
+                                    insideCodeBlock = true;
+                                }
+                            } else if (insideCodeBlock) {
+                                codeBuffer.append(line).append("\n");
+                            } else {
+                                // Regular text (non-code)
+                                SwingUtilities.invokeLater(() -> appendStyledText("", line, false, false));
+                            }
+                        }
+                    } catch (IOException | InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }).start();
+}
