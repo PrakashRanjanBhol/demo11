@@ -286,3 +286,96 @@ public class ChatPanel extends JPanel {
 //        return EditorFactory.getInstance().getEditors()[0]; // Get the first editor for simplicity
 //    }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+private void simulateStreamingResponse(String userInput) {
+    String token = "Bearer YOUR_AUTH_TOKEN"; // 🔐 Replace with your real token
+    String apiUrl = "https://your-api-endpoint.com/stream"; // ✅ Replace with your actual endpoint
+
+    String jsonBody = new JSONObject()
+            .put("prompt", userInput)
+            .put("category_type", "1")
+            .put("session_id", "1")
+            .put("mld_name", "1")
+            .toString();
+
+    OkHttpClient client = new OkHttpClient();
+
+    RequestBody body = RequestBody.create(jsonBody, MediaType.parse("application/json"));
+
+    Request request = new Request.Builder()
+            .url(apiUrl)
+            .header("Authorization", token)
+            .post(body)
+            .build();
+
+    // Append user's message
+    appendStyledText("User: " + userInput + "\n\n", false);
+
+    client.newCall(request).enqueue(new Callback() {
+        @Override
+        public void onFailure(Call call, IOException e) {
+            e.printStackTrace();
+            SwingUtilities.invokeLater(() -> appendStyledText("Error: " + e.getMessage() + "\n", false));
+        }
+
+        @Override
+        public void onResponse(Call call, Response response) {
+            if (!response.isSuccessful()) {
+                SwingUtilities.invokeLater(() ->
+                        appendStyledText("Unsuccessful response: " + response.message() + "\n", false)
+                );
+                return;
+            }
+
+            boolean inCodeBlock = false;
+            StringBuilder codeBuilder = new StringBuilder();
+
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    String finalLine = line;
+
+                    if (finalLine.trim().startsWith("```")) {
+                        if (inCodeBlock) {
+                            // Closing code block
+                            String codeContent = codeBuilder.toString();
+                            SwingUtilities.invokeLater(() -> appendStyledText(codeContent + "\n", true));
+                            codeBuilder.setLength(0);
+                            inCodeBlock = false;
+                        } else {
+                            inCodeBlock = true;
+                        }
+                        continue;
+                    }
+
+                    if (inCodeBlock) {
+                        codeBuilder.append(finalLine).append("\n");
+                    } else {
+                        SwingUtilities.invokeLater(() -> appendStyledText(finalLine + "\n", false));
+                    }
+
+                    Thread.sleep(100); // Optional delay for effect
+                }
+            } catch (IOException | InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    });
+}
