@@ -379,3 +379,20 @@ private void simulateStreamingResponse(String userInput) {
         }
     });
 }
+
+
+
+
+private ImageIcon getScaledIcon(String path, int width, int height) {
+    ImageIcon icon = new ImageIcon(getClass().getResource(path));
+    Image img = icon.getImage().getScaledInstance(width, height, Image.SCALE_SMOOTH);
+    return new ImageIcon(img);
+}
+
+JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 5));
+
+JLabel copyIcon = new JLabel(getScaledIcon("/icons/copy.png", 16, 16));
+JLabel insertIcon = new JLabel(getScaledIcon("/icons/copy.png", 16, 16));
+
+topPanel.add(copyIcon);
+topPanel.add(insertIcon);
