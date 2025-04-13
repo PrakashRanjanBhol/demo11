@@ -1,0 +1,58 @@
+private final JLabel stopLabel;
+
+stopLabel = createIconLabel("/icons/stop.png", "Stop", project);
+stopLabel.setVisible(false); // hidden by default
+stopLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
+rightPanel.setOpaque(false);
+rightPanel.add(sendButton);
+rightPanel.add(stopLabel);
+
+footerPanel.add(rightPanel, BorderLayout.EAST);
+
+
+inputField.setEnabled(false);
+sendButton.setEnabled(false);
+stopLabel.setVisible(true);
+
+
+
+
+
+
+
+
+
+
+
+
+
+stopLabel = new JLabel(new ImageIcon(getClass().getResource("/icons/stop.gif")));
+stopLabel.setToolTipText("Stop");
+stopLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+stopLabel.setVisible(false); // initially hidden
+
+
+private JLabel createIconLabel(String path, String tooltip, Project project) {
+    JLabel label = new JLabel(new ImageIcon(getClass().getResource(path)));
+    label.setToolTipText(tooltip);
+    label.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+    return label;
+}
+
+stopLabel = createIconLabel("/icons/stop.gif", "Stop", project);
+
+
+stopLabel = new JLabel(new ImageIcon(getClass().getResource("/icons/stop.gif")));
+stopLabel.setToolTipText("Stop");
+stopLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+stopLabel.setVisible(false);
+
+stopLabel.addMouseListener(new MouseAdapter() {
+    public void mouseClicked(MouseEvent e) {
+        if (streamingWorker != null && !streamingWorker.isDone()) {
+            streamingWorker.cancel(true);
+        }
+    }
+});
