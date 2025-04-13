@@ -1,0 +1,18 @@
+codeScroll.addMouseWheelListener(new MouseWheelListener() {
+    @Override
+    public void mouseWheelMoved(MouseWheelEvent e) {
+        JScrollBar verticalScrollBar = codeScroll.getVerticalScrollBar();
+        boolean atTop = verticalScrollBar.getValue() == verticalScrollBar.getMinimum();
+        boolean atBottom = verticalScrollBar.getValue() + verticalScrollBar.getVisibleAmount() == verticalScrollBar.getMaximum();
+
+        if ((e.getWheelRotation() < 0 && atTop) || (e.getWheelRotation() > 0 && atBottom)) {
+            Component parent = codeScroll.getParent();
+            while (parent != null && !(parent instanceof JScrollPane)) {
+                parent = parent.getParent();
+            }
+            if (parent != null) {
+                ((JScrollPane) parent).dispatchEvent(SwingUtilities.convertMouseEvent(codeScroll, e, parent));
+            }
+        }
+    }
+});
