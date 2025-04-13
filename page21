@@ -1,0 +1,96 @@
+private void simulateStreamingResponse(String userInput) {
+    new Thread(() -> {
+        try {
+            SwingUtilities.invokeLater(() -> {
+                appendStyledText("User", userInput, false, true);
+                appendGap();
+                appendStyledText("AI Response", "Here is the AI's response to your query.", false, false);
+            });
+
+            String token = "Bearer YOUR_AUTH_TOKEN"; // 🔐 Replace with real token
+            String apiUrl = "https://your-api-endpoint.com/stream"; // ✅ Replace with real endpoint
+
+            String jsonBody = new JSONObject()
+                    .put("prompt", userInput)
+                    .put("category_type", "1")
+                    .put("session_id", "1")
+                    .put("mld_name", "1")
+                    .toString();
+
+            OkHttpClient client = new OkHttpClient();
+
+            RequestBody body = RequestBody.create(jsonBody, MediaType.parse("application/json"));
+
+            Request request = new Request.Builder()
+                    .url(apiUrl)
+                    .header("Authorization", token)
+                    .post(body)
+                    .build();
+
+            // Save the call reference
+            streamingCall = client.newCall(request);
+
+            streamingCall.enqueue(new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    if (call.isCanceled()) {
+                        System.out.println("Call was cancelled.");
+                    } else {
+                        e.printStackTrace();
+                    }
+                }
+
+                @Override
+                public void onResponse(Call call, Response response) {
+                    if (!response.isSuccessful()) {
+                        System.err.println("Unsuccessful response: " + response);
+                        return;
+                    }
+
+                    boolean insideCodeBlock = false;
+
+                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream()))) {
+                        String line;
+                        while ((line = reader.readLine()) != null && !call.isCanceled()) {
+                            String finalLine = line;
+
+                            if (finalLine.trim().startsWith("```")) {
+                                insideCodeBlock = !insideCodeBlock;
+
+                                if (insideCodeBlock) {
+                                    SwingUtilities.invokeLater(() -> createStreamingCodeBlockPanel());
+                                } else {
+                                    SwingUtilities.invokeLater(() -> currentCodeArea = null);
+                                }
+                            } else if (insideCodeBlock) {
+                                SwingUtilities.invokeLater(() -> appendCodeLineToCurrentBlock(finalLine + "\n"));
+                            } else {
+                                SwingUtilities.invokeLater(() -> appendStyledText("", finalLine, false, false));
+                            }
+
+                            Thread.sleep(400); // Simulate stream effect
+                        }
+
+                        if (!call.isCanceled()) {
+                            SwingUtilities.invokeLater(() -> appendRatingStars());
+                        }
+
+                    } catch (IOException | InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }).start();
+}
+
+
+stopButton.addActionListener(e -> {
+    if (streamingCall != null && !streamingCall.isCanceled()) {
+        streamingCall.cancel();
+        System.out.println("Streaming stopped.");
+    }
+});
