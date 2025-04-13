@@ -456,3 +456,36 @@ yourInsertIcon.addMouseListener(new MouseAdapter() {
         });
     }
 });
+
+
+
+
+
+
+
+
+
+
+
+WriteCommandAction.runWriteCommandAction(project, () -> {
+            Document document = editor.getDocument();
+            SelectionModel selectionModel = editor.getSelectionModel();
+            int caretOffset = editor.getCaretModel().getOffset();
+
+            if (selectionModel.hasSelection()) {
+                // Case 1: Replace selected text
+                document.replaceString(
+                    selectionModel.getSelectionStart(),
+                    selectionModel.getSelectionEnd(),
+                    textToInsert
+                );
+            } else if (caretOffset > 0) {
+                // Case 2: Insert at current cursor line
+                int lineNumber = document.getLineNumber(caretOffset);
+                int lineStartOffset = document.getLineStartOffset(lineNumber);
+                document.insertString(lineStartOffset, textToInsert + "\n");
+            } else {
+                // Case 3: No cursor moved, no selection — replace everything
+                document.setText(textToInsert);
+            }
+        });
