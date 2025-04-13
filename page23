@@ -411,3 +411,48 @@ codeFeedbackIcon.addMouseListener(new MouseAdapter() {
         // You can pass this to your AI system or feedback handler here
     }
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+yourInsertIcon.addMouseListener(new MouseAdapter() {
+    @Override
+    public void mouseClicked(MouseEvent e) {
+        Project project = ProjectManager.getInstance().getOpenProjects()[0]; // Adjust if you're passing project manually
+        FileEditorManager editorManager = FileEditorManager.getInstance(project);
+        Editor editor = editorManager.getSelectedTextEditor();
+
+        if (editor == null) {
+            Messages.showMessageDialog(project, "No Active Editor Available", "Alert", Messages.getWarningIcon());
+            return;
+        }
+
+        String textToInsert = feedbackArea.getText(); // 👈 This is the new content you want to insert
+
+        WriteCommandAction.runWriteCommandAction(project, () -> {
+            Document document = editor.getDocument();
+            SelectionModel selectionModel = editor.getSelectionModel();
+
+            if (selectionModel.hasSelection()) {
+                // Replace selected text
+                int start = selectionModel.getSelectionStart();
+                int end = selectionModel.getSelectionEnd();
+                document.replaceString(start, end, textToInsert);
+            } else {
+                // Replace the whole document
+                document.setText(textToInsert);
+            }
+        });
+    }
+});
