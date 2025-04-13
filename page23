@@ -383,3 +383,31 @@ public void onResponse(Call call, Response response) {
         e.printStackTrace();
     }
 }
+
+
+
+
+codeFeedbackIcon.addMouseListener(new MouseAdapter() {
+    @Override
+    public void mouseClicked(MouseEvent e) {
+        Project project = ProjectManager.getInstance().getOpenProjects()[0]; // Get the first open project
+        FileEditorManager editorManager = FileEditorManager.getInstance(project);
+        Editor editor = editorManager.getSelectedTextEditor();
+
+        if (editor == null) {
+            Messages.showMessageDialog(project, "No Active Editor Available", "Alert", Messages.getWarningIcon());
+            return;
+        }
+
+        String selectedText = editor.getSelectionModel().getSelectedText();
+
+        if (selectedText == null || selectedText.trim().isEmpty()) {
+            Messages.showMessageDialog(project, "No Code Selected", "Alert", Messages.getWarningIcon());
+            return;
+        }
+
+        // Do something with the selectedText
+        System.out.println("Selected Code:\n" + selectedText);
+        // You can pass this to your AI system or feedback handler here
+    }
+});
