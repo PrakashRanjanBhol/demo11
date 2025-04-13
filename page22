@@ -16,3 +16,24 @@ codeScroll.addMouseWheelListener(new MouseWheelListener() {
         }
     }
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+private void autoScrollToBottom() {
+    SwingUtilities.invokeLater(() -> {
+        JScrollBar vertical = chatScrollPane.getVerticalScrollBar();
+        vertical.setValue(vertical.getMaximum());
+    });
+}
