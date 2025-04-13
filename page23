@@ -1,0 +1,314 @@
+package com.example.demo11;
+
+import javax.swing.*;
+import javax.swing.border.EmptyBorder;
+import java.awt.*;
+import java.awt.datatransfer.StringSelection;
+import java.awt.event.*;
+import java.util.ArrayList;
+import java.util.List;
+
+public class RefreshPanel {
+    private JPanel refreshContainer;
+    private JPanel cardsPanel;
+
+    public RefreshPanel() {
+        refreshContainer = new JPanel(new BorderLayout());
+
+        cardsPanel = new JPanel();
+        cardsPanel.setLayout(new BoxLayout(cardsPanel, BoxLayout.Y_AXIS));
+        cardsPanel.setOpaque(false);
+
+        JScrollPane scrollPane = new JScrollPane(cardsPanel);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        scrollPane.setBorder(null);
+        scrollPane.getViewport().setBackground(Color.WHITE);
+        refreshContainer.add(scrollPane, BorderLayout.CENTER);
+
+        List<CardData> cardDataList = new ArrayList<>();
+        cardDataList.add(new CardData("Card A", "2025-04-09"));
+        cardDataList.add(new CardData("Card B", "2025-04-08"));
+
+        renderCards(cardDataList);
+    }
+
+    public JPanel getComponent() {
+        return refreshContainer;
+    }
+
+    private void renderCards(List<CardData> cardDataList) {
+        cardsPanel.removeAll();
+        for (CardData data : cardDataList) {
+            JPanel card = createCard(data);
+            card.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+            Dimension preferred = card.getPreferredSize();
+            card.setMaximumSize(new Dimension(Integer.MAX_VALUE, preferred.height));
+
+            cardsPanel.add(card);
+            cardsPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+        }
+
+        cardsPanel.add(Box.createVerticalGlue());
+
+        cardsPanel.revalidate();
+        cardsPanel.repaint();
+    }
+
+    private JPanel createCard(CardData data) {
+        JPanel card = new JPanel();
+        card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
+        card.setCursor(new Cursor(Cursor.HAND_CURSOR));
+//        card.setBackground(Color.WHITE);
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Color.GRAY),
+                new EmptyBorder(10, 10, 10, 10)
+        ));
+        card.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        mainPanel.setOpaque(false);
+
+        JPanel leftContent = new JPanel();
+        leftContent.setLayout(new BoxLayout(leftContent, BoxLayout.Y_AXIS));
+        leftContent.setOpaque(false);
+        JLabel nameLabel = new JLabel(data.name);
+        JLabel dateLabel = new JLabel(data.creationDate);
+        nameLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
+        dateLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        leftContent.add(nameLabel);
+        leftContent.add(dateLabel);
+        mainPanel.add(leftContent, BorderLayout.WEST);
+
+        JPanel rightContent = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        rightContent.setOpaque(false);
+        JLabel deleteIcon = new JLabel("🗑️");
+        JLabel confirmDelete = new JLabel("✅ Delete");
+        JLabel cancelDelete = new JLabel("❌ Cancel");
+
+        deleteIcon.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        confirmDelete.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        cancelDelete.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        confirmDelete.setVisible(false);
+        cancelDelete.setVisible(false);
+
+        rightContent.add(deleteIcon);
+        rightContent.add(Box.createRigidArea(new Dimension(10, 0)));
+        rightContent.add(confirmDelete);
+        rightContent.add(Box.createRigidArea(new Dimension(10, 0)));
+        rightContent.add(cancelDelete);
+        mainPanel.add(rightContent, BorderLayout.EAST);
+
+        card.add(mainPanel);
+
+        JPanel[] detailsPanelHolder = new JPanel[1];
+
+        MouseAdapter toggleDetailsListener = new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                if (e.getSource() == deleteIcon || e.getSource() == confirmDelete || e.getSource() == cancelDelete) {
+                    return;
+                }
+
+                if (detailsPanelHolder[0] == null) {
+                    JPanel detailsPanel = new JPanel();
+                    detailsPanel.setLayout(new BoxLayout(detailsPanel, BoxLayout.Y_AXIS));
+                    detailsPanel.setOpaque(false);
+
+                    SwingUtilities.invokeLater(() -> {
+                        String longContent = getLongContentFromAPI(data.name);
+                        String[] lines = longContent.split("\n");
+                        boolean inCodeBlock = false;
+                        StringBuilder codeBuffer = new StringBuilder();
+                        StringBuilder textBuffer = new StringBuilder();
+
+                        for (String line : lines) {
+                            if (line.startsWith("```")) {
+                                if (!inCodeBlock) {
+                                    // flush text buffer before entering code block
+                                    if (textBuffer.length() > 0) {
+                                        detailsPanel.add(createRegularTextPanel(textBuffer.toString().trim()));
+                                        textBuffer.setLength(0);
+                                    }
+                                    inCodeBlock = true;
+                                } else {
+                                    // exiting code block, flush code
+                                    inCodeBlock = false;
+                                    detailsPanel.add(createCodeBlockPanel(codeBuffer.toString().trim()));
+                                    codeBuffer.setLength(0);
+                                }
+                            } else {
+                                if (inCodeBlock) {
+                                    codeBuffer.append(line).append("\n");
+                                } else {
+                                    textBuffer.append(line).append("\n");
+                                }
+                            }
+                        }
+
+                        // flush remaining text if any
+                        if (textBuffer.length() > 0) {
+                            detailsPanel.add(createRegularTextPanel(textBuffer.toString().trim()));
+                        }
+
+                        card.add(detailsPanel);
+                        detailsPanelHolder[0] = detailsPanel;
+
+                        Dimension preferred = card.getPreferredSize();
+                        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, preferred.height));
+
+                        card.revalidate();
+                        card.repaint();
+                    });
+                } else {
+                    card.remove(detailsPanelHolder[0]);
+                    detailsPanelHolder[0] = null;
+
+                    Dimension preferred = card.getPreferredSize();
+                    card.setMaximumSize(new Dimension(Integer.MAX_VALUE, preferred.height));
+
+                    card.revalidate();
+                    card.repaint();
+                }
+            }
+        };
+
+        mainPanel.addMouseListener(toggleDetailsListener);
+        leftContent.addMouseListener(toggleDetailsListener);
+
+        deleteIcon.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                e.consume();
+                deleteIcon.setVisible(false);
+                confirmDelete.setVisible(true);
+                cancelDelete.setVisible(true);
+                card.revalidate();
+                card.repaint();
+            }
+        });
+
+        confirmDelete.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                e.consume();
+                Container parent = card.getParent();
+                if (parent != null) {
+                    parent.remove(card);
+                    parent.revalidate();
+                    parent.repaint();
+                }
+            }
+        });
+
+        cancelDelete.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                e.consume();
+                deleteIcon.setVisible(true);
+                confirmDelete.setVisible(false);
+                cancelDelete.setVisible(false);
+                card.revalidate();
+                card.repaint();
+            }
+        });
+
+        return card;
+    }
+
+    private JPanel createCodeBlockPanel(String codeContent) {
+        JPanel codePanel = new JPanel();
+        codePanel.setLayout(new BoxLayout(codePanel, BoxLayout.Y_AXIS));
+        codePanel.setBackground(new Color(245, 245, 245));
+        codePanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Color.LIGHT_GRAY),
+                new EmptyBorder(5, 5, 5, 5)
+        ));
+
+        JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
+        actionPanel.setOpaque(false);
+        JLabel copyLabel = new JLabel("📋 Copy");
+        JLabel insertLabel = new JLabel("📥 Insert");
+
+        copyLabel.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        insertLabel.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        copyLabel.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(codeContent), null);
+            }
+        });
+
+        insertLabel.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                JOptionPane.showMessageDialog(codePanel, "Insert clicked:\n" + codeContent);
+            }
+        });
+
+        actionPanel.add(copyLabel);
+        actionPanel.add(insertLabel);
+
+        JTextArea codeArea = new JTextArea(codeContent);
+        codeArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        codeArea.setEditable(false);
+        codeArea.setLineWrap(true);
+        codeArea.setWrapStyleWord(true);
+
+        JScrollPane scrollPane = new JScrollPane(codeArea);
+        scrollPane.setPreferredSize(new Dimension(600, 150));
+        scrollPane.setBorder(null);
+
+        codePanel.add(actionPanel);
+        codePanel.add(scrollPane);
+
+        return codePanel;
+    }
+
+    private JPanel createRegularTextPanel(String textContent) {
+        JPanel textPanel = new JPanel();
+        textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
+//        textPanel.setBackground(Color.WHITE);
+        textPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Color.LIGHT_GRAY),
+                new EmptyBorder(5, 5, 5, 5)
+        ));
+
+        // Reuse the same alignment mechanism as the code block
+        JLabel textLabel = new JLabel("<html>" + textContent.replaceAll("\n", "<br/>") + "</html>");
+        textLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        textLabel.setAlignmentX(Component.LEFT_ALIGNMENT);  // Ensure left alignment
+
+        JPanel innerPanel = new JPanel();
+        innerPanel.setLayout(new BoxLayout(innerPanel, BoxLayout.X_AXIS));
+        innerPanel.setOpaque(false);
+        innerPanel.add(textLabel);
+
+        textPanel.add(innerPanel);
+        return textPanel;
+    }
+
+    private String getLongContentFromAPI(String name) {
+        return """
+            This is the AI-generated response for %s.
+            It includes code and descriptions.
+
+            ```java
+            public class HelloWorld {
+                public static void main(String[] args) {
+                    System.out.println("Hello, world!");
+                }
+            }
+            ```
+
+            Hope you found it helpful!
+            """.formatted(name);
+    }
+}
+
+class CardData {
+    String name;
+    String creationDate;
+
+    public CardData(String name, String creationDate) {
+        this.name = name;
+        this.creationDate = creationDate;
+
+    }
+}
