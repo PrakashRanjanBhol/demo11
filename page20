@@ -56,3 +56,41 @@ stopLabel.addMouseListener(new MouseAdapter() {
         }
     }
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+private JLabel createIconLabel(String path, String tooltip, Project project, int width, int height) {
+    URL imageUrl = getClass().getResource(path);
+    ImageIcon originalIcon = new ImageIcon(imageUrl);
+
+    // Scale the image
+    Image scaledImage = originalIcon.getImage().getScaledInstance(width, height, Image.SCALE_DEFAULT);
+    ImageIcon scaledIcon = new ImageIcon(scaledImage);
+
+    JLabel label = new JLabel(scaledIcon);
+    label.setToolTipText(tooltip);
+    label.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+    return label;
+}
+
+
+JLabel stopLabel = createIconLabel("/icons/stop.gif", "Stop", project, 20, 20);
