@@ -312,3 +312,74 @@ class CardData {
 
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@Override
+public void onResponse(Call call, Response response) {
+    if (!response.isSuccessful()) {
+        System.err.println("Unsuccessful response: " + response);
+        return;
+    }
+
+    boolean insideCodeBlock = false;
+    StringBuilder finalResponseBuilder = new StringBuilder();
+    long startTime = System.currentTimeMillis();
+
+    try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream()))) {
+        String line;
+        while ((line = reader.readLine()) != null && !call.isCanceled()) {
+            String finalLine = line;
+            finalResponseBuilder.append(finalLine).append("\n"); // 👈 collect all response chunks
+
+            if (finalLine.trim().startsWith("```")) {
+                insideCodeBlock = !insideCodeBlock;
+
+                if (insideCodeBlock) {
+                    SwingUtilities.invokeLater(() -> createStreamingCodeBlockPanel());
+                } else {
+                    SwingUtilities.invokeLater(() -> currentCodeArea = null);
+                }
+            } else if (insideCodeBlock) {
+                SwingUtilities.invokeLater(() -> appendCodeLineToCurrentBlock(finalLine + "\n"));
+            } else {
+                SwingUtilities.invokeLater(() -> appendStyledText("", finalLine, false, false));
+            }
+
+            Thread.sleep(400); // Simulate stream effect
+        }
+
+        long endTime = System.currentTimeMillis();
+        long duration = endTime - startTime;
+
+        String finalResponse = finalResponseBuilder.toString().trim();
+        String timeTaken = duration + " ms";
+
+        System.out.println("Final Response:\n" + finalResponse);
+        System.out.println("Time Taken: " + timeTaken);
+
+        if (!call.isCanceled()) {
+            SwingUtilities.invokeLater(() -> appendRatingStars());
+        }
+
+        // Optionally, you can show the final response or time somewhere in the UI
+
+    } catch (IOException | InterruptedException e) {
+        e.printStackTrace();
+    }
+}
