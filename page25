@@ -1,0 +1,101 @@
+private void parseAndAppendMarkdown(String markdown) throws BadLocationException {
+    int index = 0;
+    while (index < markdown.length()) {
+        // Heading
+        if (markdown.startsWith("# ", index)) {
+            int end = markdown.indexOf('\n', index);
+            if (end == -1) end = markdown.length();
+            String heading = markdown.substring(index + 2, end).trim();
+
+            appendText(heading + "\n", 18, true, false, false, new Color(60, 60, 180), null, "Poppins");
+            index = end + 1;
+            continue;
+        }
+
+        // Inline Code
+        if (markdown.startsWith("`", index)) {
+            int end = markdown.indexOf("`", index + 1);
+            if (end != -1) {
+                String code = markdown.substring(index + 1, end);
+                appendText(code, 14, false, false, false, new Color(80, 50, 10), new Color(230, 230, 230), "Consolas");
+                index = end + 1;
+                continue;
+            } else {
+                // No closing backtick; treat as regular text
+                appendPlainText(markdown.substring(index, index + 1));
+                index += 1;
+                continue;
+            }
+        }
+
+        // Bold
+        if (markdown.startsWith("**", index)) {
+            int end = markdown.indexOf("**", index + 2);
+            if (end != -1) {
+                String bold = markdown.substring(index + 2, end);
+                appendText(bold, 14, true, false, false, Color.BLACK, null, "Poppins");
+                index = end + 2;
+                continue;
+            } else {
+                appendPlainText(markdown.substring(index, index + 2));
+                index += 2;
+                continue;
+            }
+        }
+
+        // Italic
+        if (markdown.startsWith("*", index)) {
+            // Make sure it's not bold (**)
+            if (!markdown.startsWith("**", index)) {
+                int end = markdown.indexOf("*", index + 1);
+                if (end != -1) {
+                    String italic = markdown.substring(index + 1, end);
+                    appendText(italic, 14, false, true, false, Color.BLACK, null, "Poppins");
+                    index = end + 1;
+                    continue;
+                } else {
+                    appendPlainText(markdown.substring(index, index + 1));
+                    index += 1;
+                    continue;
+                }
+            }
+        }
+
+        // Plain text (until next special symbol)
+        int nextSpecial = findNextMarkdownSymbol(markdown, index);
+        if (nextSpecial == -1) nextSpecial = markdown.length();
+        String plain = markdown.substring(index, nextSpecial);
+        appendPlainText(plain);
+        index = nextSpecial;
+    }
+
+    styledDocument.insertString(styledDocument.getLength(), "\n", null);
+}
+
+private void appendText(String text, int size, boolean bold, boolean italic, boolean underline,
+                        Color fg, Color bg, String font) throws BadLocationException {
+    SimpleAttributeSet attr = new SimpleAttributeSet();
+    if (bold) StyleConstants.setBold(attr, true);
+    if (italic) StyleConstants.setItalic(attr, true);
+    if (underline) StyleConstants.setUnderline(attr, true);
+    if (fg != null) StyleConstants.setForeground(attr, fg);
+    if (bg != null) StyleConstants.setBackground(attr, bg);
+    if (font != null) StyleConstants.setFontFamily(attr, font);
+    StyleConstants.setFontSize(attr, size);
+    styledDocument.insertString(styledDocument.getLength(), text, attr);
+}
+
+private void appendPlainText(String text) throws BadLocationException {
+    appendText(text, 14, false, false, false, Color.BLACK, null, "Poppins");
+}
+
+private int findNextMarkdownSymbol(String text, int start) {
+    int min = -1;
+    for (String symbol : new String[]{"# ", "**", "*", "`"}) {
+        int idx = text.indexOf(symbol, start);
+        if (idx != -1 && (min == -1 || idx < min)) {
+            min = idx;
+        }
+    }
+    return min;
+}
