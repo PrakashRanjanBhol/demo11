@@ -724,3 +724,14 @@ public class ChatPanel extends JPanel {
 
 
 implementation("com.fifesoft:rsyntaxtextarea:3.3.3")
+
+
+
+// Apply dark theme
+try {
+    InputStream in = getClass().getResourceAsStream("/themes/dark.xml");
+    Theme theme = Theme.load(in);
+    theme.apply(codeArea);
+} catch (IOException e) {
+    e.printStackTrace();
+}
