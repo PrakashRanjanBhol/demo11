@@ -1,0 +1,97 @@
+private void parseAndAppendMarkdown(String markdown) throws BadLocationException {
+    int index = 0;
+    while (index < markdown.length()) {
+        // Heading
+        if (markdown.startsWith("# ", index)) {
+            int end = markdown.indexOf('\n', index);
+            if (end == -1) end = markdown.length();
+            String heading = markdown.substring(index + 2, end).trim();
+
+            appendText(heading + "\n", 18, true, false, false, new Color(130, 170, 255), null, "JetBrains Mono");
+            index = end + 1;
+            continue;
+        }
+
+        // Inline Code
+        if (markdown.startsWith("`", index)) {
+            int end = markdown.indexOf("`", index + 1);
+            if (end != -1) {
+                String code = markdown.substring(index + 1, end);
+                appendText(code, 14, false, false, false, new Color(220, 220, 170), new Color(45, 45, 45), "JetBrains Mono");
+                index = end + 1;
+                continue;
+            } else {
+                appendPlainText(markdown.substring(index, index + 1));
+                index += 1;
+                continue;
+            }
+        }
+
+        // Bold
+        if (markdown.startsWith("**", index)) {
+            int end = markdown.indexOf("**", index + 2);
+            if (end != -1) {
+                String bold = markdown.substring(index + 2, end);
+                appendText(bold, 14, true, false, false, new Color(255, 255, 255), null, "JetBrains Mono");
+                index = end + 2;
+                continue;
+            } else {
+                appendPlainText(markdown.substring(index, index + 2));
+                index += 2;
+                continue;
+            }
+        }
+
+        // Italic
+        if (markdown.startsWith("*", index) && !markdown.startsWith("**", index)) {
+            int end = markdown.indexOf("*", index + 1);
+            if (end != -1) {
+                String italic = markdown.substring(index + 1, end);
+                appendText(italic, 14, false, true, false, new Color(200, 200, 200), null, "JetBrains Mono");
+                index = end + 1;
+                continue;
+            } else {
+                appendPlainText(markdown.substring(index, index + 1));
+                index += 1;
+                continue;
+            }
+        }
+
+        // Plain text
+        int nextSpecial = findNextMarkdownSymbol(markdown, index);
+        if (nextSpecial == -1) nextSpecial = markdown.length();
+        String plain = markdown.substring(index, nextSpecial);
+        appendPlainText(plain);
+        index = nextSpecial;
+    }
+
+    styledDocument.insertString(styledDocument.getLength(), "\n", null);
+}
+
+private void appendText(String text, int size, boolean bold, boolean italic, boolean underline,
+                        Color fg, Color bg, String font) throws BadLocationException {
+    SimpleAttributeSet attr = new SimpleAttributeSet();
+    StyleConstants.setFontSize(attr, size);
+    if (bold) StyleConstants.setBold(attr, true);
+    if (italic) StyleConstants.setItalic(attr, true);
+    if (underline) StyleConstants.setUnderline(attr, true);
+    if (fg != null) StyleConstants.setForeground(attr, fg);
+    if (bg != null) StyleConstants.setBackground(attr, bg);
+    if (font != null) StyleConstants.setFontFamily(attr, font);
+    styledDocument.insertString(styledDocument.getLength(), text, attr);
+}
+
+private void appendPlainText(String text) throws BadLocationException {
+    appendText(text, 14, false, false, false, new Color(180, 180, 180), null, "JetBrains Mono");
+}
+
+private int findNextMarkdownSymbol(String text, int start) {
+    int min = -1;
+    for (String symbol : new String[]{"# ", "**", "*", "`"}) {
+        int idx = text.indexOf(symbol, start);
+        if (idx != -1 && (min == -1 || idx < min)) {
+            min = idx;
+        }
+    }
+    return min;
+}
