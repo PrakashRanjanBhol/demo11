@@ -1,0 +1,819 @@
+package com.example.demo11;
+
+import javax.swing.*;
+import javax.swing.border.EmptyBorder;
+import javax.swing.text.*;
+import java.awt.*;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.StringSelection;
+import java.awt.event.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
+import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
+import org.fife.ui.rtextarea.RTextScrollPane;
+
+public class RefreshPanel {
+    private JPanel refreshContainer;
+    private JPanel cardsPanel;
+    private JTextArea currentCodeArea = null;
+
+    public RefreshPanel() {
+        refreshContainer = new JPanel(new BorderLayout());
+
+        cardsPanel = new JPanel();
+        cardsPanel.setLayout(new BoxLayout(cardsPanel, BoxLayout.Y_AXIS));
+        cardsPanel.setOpaque(false);
+
+        JScrollPane scrollPane = new JScrollPane(cardsPanel);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        scrollPane.setBorder(null);
+        scrollPane.getViewport().setBackground(Color.WHITE);
+        refreshContainer.add(scrollPane, BorderLayout.CENTER);
+
+        List<CardData> cardDataList = new ArrayList<>();
+        cardDataList.add(new CardData("Card A", "2025-04-09"));
+        cardDataList.add(new CardData("Card B", "2025-04-08"));
+
+        renderCards(cardDataList);
+    }
+
+    public JPanel getComponent() {
+        return refreshContainer;
+    }
+
+    private void renderCards(List<CardData> cardDataList) {
+        cardsPanel.removeAll();
+        for (CardData data : cardDataList) {
+            JPanel card = createCard(data);
+            card.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+            Dimension preferred = card.getPreferredSize();
+            card.setMaximumSize(new Dimension(Integer.MAX_VALUE, preferred.height));
+
+            cardsPanel.add(card);
+            cardsPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+        }
+
+        cardsPanel.add(Box.createVerticalGlue());
+
+        cardsPanel.revalidate();
+        cardsPanel.repaint();
+    }
+
+    private JPanel createCard(CardData data) {
+        JPanel card = new JPanel();
+        card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
+//        card.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Color.GRAY),
+                new EmptyBorder(10, 10, 10, 10)
+        ));
+        card.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        mainPanel.setOpaque(false);
+
+        JPanel leftContent = new JPanel();
+        leftContent.setLayout(new BoxLayout(leftContent, BoxLayout.Y_AXIS));
+        leftContent.setOpaque(false);
+        JLabel nameLabel = new JLabel(data.name);
+        JLabel dateLabel = new JLabel(data.creationDate);
+        nameLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
+        dateLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        leftContent.add(nameLabel);
+        leftContent.add(dateLabel);
+        leftContent.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        mainPanel.add(leftContent, BorderLayout.WEST);
+
+        JPanel rightContent = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        rightContent.setOpaque(false);
+        JLabel deleteIcon = new JLabel("🗑️");
+        JLabel confirmDelete = new JLabel("✅ Delete");
+        JLabel cancelDelete = new JLabel("❌ Cancel");
+
+        deleteIcon.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        confirmDelete.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        cancelDelete.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        confirmDelete.setVisible(false);
+        cancelDelete.setVisible(false);
+
+        rightContent.add(deleteIcon);
+        rightContent.add(Box.createRigidArea(new Dimension(10, 0)));
+        rightContent.add(confirmDelete);
+        rightContent.add(Box.createRigidArea(new Dimension(10, 0)));
+        rightContent.add(cancelDelete);
+        mainPanel.add(rightContent, BorderLayout.EAST);
+
+        mainPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        mainPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, mainPanel.getPreferredSize().height));
+
+        card.add(mainPanel);
+
+        // Expansion panel (initially hidden)
+        JPanel expansionPanel = new JPanel();
+        expansionPanel.setLayout(new BoxLayout(expansionPanel, BoxLayout.Y_AXIS));
+        expansionPanel.setOpaque(false);
+        expansionPanel.setVisible(false);
+//        renderResponse(expansionPanel);
+
+        card.add(expansionPanel);
+
+
+
+        // Delete logic
+        deleteIcon.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                e.consume();
+                deleteIcon.setVisible(false);
+                confirmDelete.setVisible(true);
+                cancelDelete.setVisible(true);
+                card.revalidate();
+                card.repaint();
+            }
+        });
+
+        confirmDelete.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                e.consume();
+                Container parent = card.getParent();
+                if (parent != null) {
+                    parent.remove(card);
+                    parent.revalidate();
+                    parent.repaint();
+                }
+            }
+        });
+
+        cancelDelete.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                e.consume();
+                deleteIcon.setVisible(true);
+                confirmDelete.setVisible(false);
+                cancelDelete.setVisible(false);
+                card.revalidate();
+                card.repaint();
+            }
+        });
+
+        // Click to expand
+        leftContent.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                e.consume();
+                if (!expansionPanel.isVisible()) {
+                    expansionPanel.setVisible(true);
+                    renderResponse(expansionPanel);
+                    expansionPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+                    expansionPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, expansionPanel.getPreferredSize().height));
+                } else {
+                    expansionPanel.setVisible(false);
+                    expansionPanel.removeAll();
+                    card.revalidate();
+                    card.repaint();
+                }
+            }
+        });
+
+        return card;
+    }
+
+
+    private void renderResponse(JPanel targetPanel) {
+        targetPanel.setLayout(new BoxLayout(targetPanel, BoxLayout.Y_AXIS));
+        targetPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        targetPanel.removeAll();
+
+        for (int i = 0; i < 3; i++) { // Repeat 3 times
+            String response = String.join("\n", List.of(
+                    "# AI Response",
+                    "Here is a code snippet:",
+                    "```java",
+                    "public class HelloWorld {",
+                    "    public static void main(String[] args) {",
+                    "        System.out.println(\"Hello, world!\");",
+                    "    }",
+                    "}",
+                    "```",
+                    "Some **bold** text, *italic* text, and `inline code` here.",
+                    "Another paragraph follows.",
+                    "```java",
+                    "public class AnotherExample {",
+                    "    void test() {",
+                    "        System.out.println(\"Another example\");",
+                    "    }",
+                    "}",
+                    "```",
+                    "# End"
+            ));
+
+            appendStyledText(targetPanel, "User", "Write a Java Code", true);
+            appendStyledText(targetPanel, "AI Response",null, false);
+
+            String[] lines = response.split("\n");
+            boolean inCodeBlock = false;
+            StringBuilder codeBuilder = new StringBuilder();
+            String currentSyntax = SyntaxConstants.SYNTAX_STYLE_NONE;
+
+            JTextPane markdownPane = new JTextPane();
+            StyledDocument styledDocument = markdownPane.getStyledDocument();
+            markdownPane.setEditable(false);
+            markdownPane.setOpaque(false);
+            markdownPane.setFont(new Font("JetBrains Mono", Font.PLAIN, 14));
+            markdownPane.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+            StringBuilder textBuilder = new StringBuilder();
+
+            try {
+                for (String line : lines) {
+                    if (line.startsWith("```")) {
+                        if (!inCodeBlock) {
+                            if (textBuilder.length() > 0) {
+                                JTextPane pane = createMarkdownPane(textBuilder.toString(), targetPanel);
+                                targetPanel.add(Box.createVerticalStrut(10));
+                                targetPanel.add(pane);
+                                textBuilder.setLength(0);
+                            }
+
+                            String language = line.substring(3).trim();
+                            currentSyntax = switch (language) {
+                                case "java" -> SyntaxConstants.SYNTAX_STYLE_JAVA;
+                                case "python" -> SyntaxConstants.SYNTAX_STYLE_PYTHON;
+                                case "javascript", "js" -> SyntaxConstants.SYNTAX_STYLE_JAVASCRIPT;
+                                default -> SyntaxConstants.SYNTAX_STYLE_NONE;
+                            };
+                            codeBuilder.setLength(0);
+                            inCodeBlock = true;
+                        } else {
+                            RSyntaxTextArea codeArea = new RSyntaxTextArea();
+                            codeArea.setSyntaxEditingStyle(currentSyntax);
+                            codeArea.setText(codeBuilder.toString());
+                            codeArea.setEditable(false);
+                            codeArea.setFont(new Font("JetBrains Mono", Font.PLAIN, 14));
+                            codeArea.setCodeFoldingEnabled(true);
+                            codeArea.setLineWrap(true);
+                            codeArea.setWrapStyleWord(true);
+                            codeArea.setCaretPosition(0);
+
+                            RTextScrollPane scrollPane = new RTextScrollPane(codeArea);
+                            scrollPane.setPreferredSize(new Dimension(targetPanel.getWidth(), 150));
+                            scrollPane.setMaximumSize(new Dimension(Integer.MAX_VALUE, 150));
+                            scrollPane.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+                            scrollPane.addMouseWheelListener(e -> {
+                                JScrollBar verticalScrollBar = scrollPane.getVerticalScrollBar();
+                                boolean atTop = verticalScrollBar.getValue() == verticalScrollBar.getMinimum();
+                                boolean atBottom = verticalScrollBar.getValue() + verticalScrollBar.getVisibleAmount() == verticalScrollBar.getMaximum();
+
+                                if ((e.getWheelRotation() < 0 && atTop) || (e.getWheelRotation() > 0 && atBottom)) {
+                                    Component parent = scrollPane.getParent();
+                                    while (parent != null && !(parent instanceof JScrollPane)) {
+                                        parent = parent.getParent();
+                                    }
+                                    if (parent != null) {
+                                        ((JScrollPane) parent).dispatchEvent(SwingUtilities.convertMouseEvent(scrollPane, e, parent));
+                                    }
+                                }
+                            });
+
+                            JPanel codeBlockPanel = new JPanel();
+                            codeBlockPanel.setLayout(new BoxLayout(codeBlockPanel, BoxLayout.Y_AXIS));
+                            codeBlockPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+                            codeBlockPanel.setOpaque(false);
+
+                            JPanel iconRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
+                            iconRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+                            iconRow.setOpaque(false);
+
+                            JLabel copyIcon = new JLabel(new ImageIcon(getClass().getResource("/icons/copy.png")));
+                            copyIcon.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+                            JLabel insertIcon = new JLabel(new ImageIcon(getClass().getResource("/icons/copy.png")));
+                            insertIcon.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+                            iconRow.add(copyIcon);
+                            iconRow.add(insertIcon);
+
+                            copyIcon.addMouseListener(new MouseAdapter() {
+                                @Override
+                                public void mouseClicked(MouseEvent e) {
+                                    StringSelection selection = new StringSelection(codeArea.getText());
+                                    Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, null);
+                                }
+                            });
+                            insertIcon.addMouseListener(new MouseAdapter() {
+                                @Override
+                                public void mouseClicked(MouseEvent e) {
+                                    System.out.println("Insert code triggered");
+                                }
+                            });
+
+                            codeBlockPanel.add(iconRow);
+                            codeBlockPanel.add(Box.createVerticalStrut(10));
+                            codeBlockPanel.add(scrollPane);
+
+                            targetPanel.add(Box.createVerticalStrut(10));
+                            targetPanel.add(codeBlockPanel);
+
+                            inCodeBlock = false;
+                        }
+                    } else if (inCodeBlock) {
+                        codeBuilder.append(line).append("\n");
+                    } else {
+                        textBuilder.append(line).append("\n");
+                    }
+                }
+
+                if (textBuilder.length() > 0) {
+                    JTextPane pane = createMarkdownPane(textBuilder.toString(), targetPanel);
+                    targetPanel.add(Box.createVerticalStrut(10));
+                    targetPanel.add(pane);
+                }
+
+            } catch (BadLocationException e) {
+                e.printStackTrace();
+            }
+
+            targetPanel.add(Box.createVerticalStrut(10));
+            targetPanel.add(markdownPane);
+
+            String uniqueId = UUID.randomUUID().toString();
+            JPanel ratingFeedbackPanel = createRatingFeedbackPanel(2, uniqueId);
+            targetPanel.add(Box.createVerticalStrut(5));
+            targetPanel.add(ratingFeedbackPanel);
+        }
+
+        targetPanel.revalidate();
+        targetPanel.repaint();
+    }
+
+
+    private void appendStyledText(JPanel targetElement, String label, String text, boolean isUserQuery) {
+        try {
+            // Create a container panel for each message (User/AI)
+            JPanel messagePanel = new JPanel();
+            messagePanel.setLayout(new BoxLayout(messagePanel, BoxLayout.Y_AXIS));
+            messagePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+            // === Label Style ===
+            JLabel labelComponent = new JLabel(label + ":");
+            labelComponent.setFont(new Font("Poppins", Font.BOLD, 14));
+            labelComponent.setForeground(isUserQuery ? Color.BLUE : Color.GREEN);
+
+            // === Message Text Style ===
+            JLabel messageLabel = new JLabel(text);
+            messageLabel.setFont(new Font("Poppins", Font.PLAIN, 14));
+            messageLabel.setForeground(Color.BLACK);
+
+            // Set alignment for label and message text
+            if (isUserQuery) {
+                labelComponent.setAlignmentX(Component.LEFT_ALIGNMENT);  // Label aligned to the left
+                messageLabel.setAlignmentX(Component.LEFT_ALIGNMENT);    // Message text aligned to the left
+            } else {
+                labelComponent.setAlignmentX(Component.RIGHT_ALIGNMENT);  // Label aligned to the right
+                messageLabel.setAlignmentX(Component.RIGHT_ALIGNMENT);    // Message text aligned to the right
+            }
+
+            // Add label and message label to message panel
+            messagePanel.add(labelComponent);
+            messagePanel.add(messageLabel);  // No need for JScrollPane since it's a single line text
+
+            // Add the message panel to the target JPanel
+            targetElement.add(messagePanel);
+
+            // Revalidate and repaint the target panel to reflect the changes
+            targetElement.revalidate();
+            targetElement.repaint();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+
+
+    private JPanel createRatingFeedbackPanel(int initialRating, String uniqueId) {
+        JPanel wrapper = new JPanel();
+        wrapper.setLayout(new BoxLayout(wrapper, BoxLayout.Y_AXIS));
+        wrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
+        wrapper.setOpaque(false);
+
+        JPanel ratingPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
+        ratingPanel.setOpaque(false);
+
+        JLabel[] stars = new JLabel[5];
+        int[] rating = {0}; // Holds the selected rating
+
+        Icon starEmpty = new ImageIcon(getClass().getResource("/icons/star_empty.png"));
+        Icon starFilled = new ImageIcon(getClass().getResource("/icons/star_filled.png"));
+
+        for (int i = 0; i < 5; i++) {
+            final int index = i;
+            stars[i] = new JLabel(starEmpty);
+            stars[i].setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            stars[i].addMouseListener(new MouseAdapter() {
+                public void mouseClicked(MouseEvent e) {
+                    rating[0] = index + 1;
+                    for (int j = 0; j < 5; j++) {
+                        stars[j].setIcon(j <= index ? starFilled : starEmpty);
+                    }
+                    System.out.println("Rating for " + uniqueId + " = " + rating[0]);
+                }
+            });
+            ratingPanel.add(stars[i]);
+        }
+
+        // === Auto-select rating based on parameter ===
+        if (initialRating >= 1 && initialRating <= 5) {
+            rating[0] = initialRating;
+            for (int i = 0; i < 5; i++) {
+                stars[i].setIcon(i < initialRating ? starFilled : starEmpty);
+            }
+        }
+
+        // Feedback Icon
+        JLabel feedbackIcon = new JLabel(new ImageIcon(getClass().getResource("/icons/copy.png")));
+        feedbackIcon.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        ratingPanel.add(feedbackIcon);
+
+        // Feedback Area (initially hidden)
+        JPanel feedbackArea = new JPanel();
+        feedbackArea.setLayout(new BoxLayout(feedbackArea, BoxLayout.Y_AXIS));
+        feedbackArea.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+        feedbackArea.setOpaque(false);
+        feedbackArea.setVisible(false);
+
+        JTextArea feedbackText = new JTextArea(3, 40);
+        feedbackText.setLineWrap(true);
+        feedbackText.setWrapStyleWord(true);
+        JScrollPane scroll = new JScrollPane(feedbackText);
+        scroll.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JPanel buttonRow = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton submit = new JButton("Submit");
+        JButton cancel = new JButton("Cancel");
+
+        submit.addActionListener(e -> {
+            System.out.println("Feedback for " + uniqueId + ": " + feedbackText.getText());
+            feedbackArea.setVisible(false);
+        });
+        cancel.addActionListener(e -> feedbackArea.setVisible(false));
+
+        buttonRow.add(submit);
+        buttonRow.add(cancel);
+
+        feedbackArea.add(Box.createVerticalStrut(5));
+        feedbackArea.add(scroll);
+        feedbackArea.add(buttonRow);
+
+        feedbackIcon.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                feedbackArea.setVisible(!feedbackArea.isVisible());
+            }
+        });
+
+        wrapper.add(ratingPanel);
+        wrapper.add(Box.createVerticalStrut(5));
+        wrapper.add(feedbackArea);
+        return wrapper;
+    }
+
+
+    private JTextPane createMarkdownPane(String text, JPanel targetPanel) throws BadLocationException {
+        JTextPane markdownPane = new JTextPane();
+        StyledDocument styledDocument = markdownPane.getStyledDocument();
+        markdownPane.setEditable(false);
+        markdownPane.setOpaque(false);
+        markdownPane.setFont(new Font("JetBrains Mono", Font.PLAIN, 14));
+        markdownPane.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+
+        for (String line : text.split("\n")) {
+            parseAndAppendMarkdown(line, styledDocument);
+        }
+        markdownPane.setPreferredSize(new Dimension(targetPanel.getWidth(), markdownPane.getPreferredSize().height));
+
+        return markdownPane;
+    }
+
+
+    private void parseAndAppendMarkdown(String line, StyledDocument doc) throws BadLocationException {
+        if (line.trim().isEmpty()) {
+            doc.insertString(doc.getLength(), "\n", null);
+            return;
+        }
+
+        // Headings
+        if (line.startsWith("#")) {
+            int level = 0;
+            while (level < line.length() && line.charAt(level) == '#') level++;
+            String text = line.substring(level).trim();
+            SimpleAttributeSet headingStyle = new SimpleAttributeSet();
+            StyleConstants.setBold(headingStyle, true);
+            StyleConstants.setFontSize(headingStyle, 16 + (1 - level) * 2);
+            StyleConstants.setForeground(headingStyle, Color.WHITE);
+            appendText(doc, text + "\n", headingStyle);
+            return;
+        }
+
+        int i = 0;
+        while (i < line.length()) {
+            char ch = line.charAt(i);
+            if (line.startsWith("**", i)) {
+                int end = line.indexOf("**", i + 2);
+                if (end != -1) {
+                    appendText(doc, line.substring(i + 2, end), getBoldStyle());
+                    i = end + 2;
+                    continue;
+                }
+            } else if (line.startsWith("*", i)) {
+                int end = line.indexOf("*", i + 1);
+                if (end != -1) {
+                    appendText(doc, line.substring(i + 1, end), getItalicStyle());
+                    i = end + 1;
+                    continue;
+                }
+            } else if (line.startsWith("`", i)) {
+                int end = line.indexOf("`", i + 1);
+                if (end != -1) {
+                    appendText(doc, line.substring(i + 1, end), getCodeStyle());
+                    i = end + 1;
+                    continue;
+                }
+            }
+
+            appendText(doc, String.valueOf(ch), getDefaultStyle());
+            i++;
+        }
+        doc.insertString(doc.getLength(), "\n", null);
+    }
+
+    private void appendText(StyledDocument doc, String text, AttributeSet style) throws BadLocationException {
+        doc.insertString(doc.getLength(), text, style);
+    }
+
+
+    private AttributeSet getDefaultStyle() {
+        SimpleAttributeSet style = new SimpleAttributeSet();
+        StyleConstants.setForeground(style, Color.WHITE);
+        StyleConstants.setFontFamily(style, "JetBrains Mono");
+        StyleConstants.setFontSize(style, 14);
+        return style;
+    }
+
+    private AttributeSet getBoldStyle() {
+        SimpleAttributeSet style = new SimpleAttributeSet();
+        StyleConstants.setBold(style, true);
+        StyleConstants.setForeground(style, Color.WHITE);
+        StyleConstants.setFontFamily(style, "JetBrains Mono");
+        StyleConstants.setFontSize(style, 14);
+        return style;
+    }
+
+    private AttributeSet getItalicStyle() {
+        SimpleAttributeSet style = new SimpleAttributeSet();
+        StyleConstants.setItalic(style, true);
+        StyleConstants.setForeground(style, Color.LIGHT_GRAY);
+        StyleConstants.setFontFamily(style, "JetBrains Mono");
+        StyleConstants.setFontSize(style, 14);
+        return style;
+    }
+
+    private AttributeSet getCodeStyle() {
+        SimpleAttributeSet style = new SimpleAttributeSet();
+        StyleConstants.setForeground(style, new Color(144, 238, 144)); // light green
+        StyleConstants.setFontFamily(style, "JetBrains Mono");
+        StyleConstants.setFontSize(style, 14);
+        StyleConstants.setBackground(style, new Color(30, 30, 30));
+        return style;
+    }
+
+
+}
+
+class CardData {
+    String name;
+    String creationDate;
+
+    public CardData(String name, String creationDate) {
+        this.name = name;
+        this.creationDate = creationDate;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+public JSONArray fetchPromptHistory() {
+    String token = "Bearer YOUR_AUTH_TOKEN";
+    String apiUrl = "https://your-api-endpoint.com/stream";
+
+    String jsonBody = new JSONObject()
+            .put("prompt", "Write a Java code")
+            .put("category_type", "1")
+            .put("session_id", "1")
+            .put("mld_name", "1")
+            .toString();
+
+    OkHttpClient client = new OkHttpClient();
+
+    RequestBody body = RequestBody.create(jsonBody, MediaType.parse("application/json"));
+    Request request = new Request.Builder()
+            .url(apiUrl)
+            .header("Authorization", token)
+            .post(body)
+            .build();
+
+    try (Response response = client.newCall(request).execute()) {
+        if (response.isSuccessful() && response.body() != null) {
+            String responseBody = response.body().string();
+            JSONObject json = new JSONObject(responseBody);
+            return json.getJSONArray("result");
+        } else {
+            System.err.println("API call failed: " + response.code());
+        }
+    } catch (IOException e) {
+        e.printStackTrace();
+    }
+
+    return new JSONArray(); // Return empty array on failure
+}
+
+
+private void renderResponse(JPanel targetPanel) {
+    targetPanel.setLayout(new BoxLayout(targetPanel, BoxLayout.Y_AXIS));
+    targetPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+    targetPanel.removeAll();
+
+    JSONArray promptHistory = fetchPromptHistory();
+
+    for (int i = 0; i < promptHistory.length(); i++) {
+        JSONObject entry = promptHistory.getJSONObject(i);
+        String prompt = entry.getString("prompt");
+        String response = entry.getString("response");
+        String uniqueId = String.valueOf(entry.getInt("ps_user_prompt_history_id"));
+
+        appendStyledText(targetPanel, "User", prompt, true);
+        appendStyledText(targetPanel, "AI Response", null, false);
+
+        renderMarkdownAndCode(response, targetPanel);
+
+        JPanel ratingFeedbackPanel = createRatingFeedbackPanel(2, uniqueId);
+        targetPanel.add(Box.createVerticalStrut(5));
+        targetPanel.add(ratingFeedbackPanel);
+    }
+
+    targetPanel.revalidate();
+    targetPanel.repaint();
+}
+
+
+private void renderMarkdownAndCode(String response, JPanel targetPanel) {
+    String[] lines = response.split("\n");
+    boolean inCodeBlock = false;
+    StringBuilder codeBuilder = new StringBuilder();
+    StringBuilder textBuilder = new StringBuilder();
+    String currentSyntax = SyntaxConstants.SYNTAX_STYLE_NONE;
+
+    try {
+        for (String line : lines) {
+            if (line.startsWith("```")) {
+                if (!inCodeBlock) {
+                    if (textBuilder.length() > 0) {
+                        JTextPane pane = createMarkdownPane(textBuilder.toString(), targetPanel);
+                        targetPanel.add(Box.createVerticalStrut(10));
+                        targetPanel.add(pane);
+                        textBuilder.setLength(0);
+                    }
+
+                    String language = line.substring(3).trim();
+                    currentSyntax = switch (language) {
+                        case "java" -> SyntaxConstants.SYNTAX_STYLE_JAVA;
+                        case "python" -> SyntaxConstants.SYNTAX_STYLE_PYTHON;
+                        case "js", "javascript" -> SyntaxConstants.SYNTAX_STYLE_JAVASCRIPT;
+                        default -> SyntaxConstants.SYNTAX_STYLE_NONE;
+                    };
+                    codeBuilder.setLength(0);
+                    inCodeBlock = true;
+                } else {
+                    RSyntaxTextArea codeArea = new RSyntaxTextArea();
+                    codeArea.setSyntaxEditingStyle(currentSyntax);
+                    codeArea.setText(codeBuilder.toString());
+                    codeArea.setEditable(false);
+                    codeArea.setFont(new Font("JetBrains Mono", Font.PLAIN, 14));
+                    codeArea.setCodeFoldingEnabled(true);
+                    codeArea.setLineWrap(true);
+                    codeArea.setWrapStyleWord(true);
+                    codeArea.setCaretPosition(0);
+
+                    RTextScrollPane scrollPane = new RTextScrollPane(codeArea);
+                    scrollPane.setPreferredSize(new Dimension(targetPanel.getWidth(), 150));
+                    scrollPane.setMaximumSize(new Dimension(Integer.MAX_VALUE, 150));
+                    scrollPane.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+                    scrollPane.addMouseWheelListener(e -> {
+                        JScrollBar verticalScrollBar = scrollPane.getVerticalScrollBar();
+                        boolean atTop = verticalScrollBar.getValue() == verticalScrollBar.getMinimum();
+                        boolean atBottom = verticalScrollBar.getValue() + verticalScrollBar.getVisibleAmount() == verticalScrollBar.getMaximum();
+
+                        if ((e.getWheelRotation() < 0 && atTop) || (e.getWheelRotation() > 0 && atBottom)) {
+                            Component parent = scrollPane.getParent();
+                            while (parent != null && !(parent instanceof JScrollPane)) {
+                                parent = parent.getParent();
+                            }
+                            if (parent != null) {
+                                ((JScrollPane) parent).dispatchEvent(SwingUtilities.convertMouseEvent(scrollPane, e, parent));
+                            }
+                        }
+                    });
+
+                    JPanel codeBlockPanel = new JPanel();
+                    codeBlockPanel.setLayout(new BoxLayout(codeBlockPanel, BoxLayout.Y_AXIS));
+                    codeBlockPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+                    codeBlockPanel.setOpaque(false);
+
+                    JPanel iconRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
+                    iconRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+                    iconRow.setOpaque(false);
+
+                    JLabel copyIcon = new JLabel(new ImageIcon(getClass().getResource("/icons/copy.png")));
+                    copyIcon.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                    copyIcon.addMouseListener(new MouseAdapter() {
+                        @Override
+                        public void mouseClicked(MouseEvent e) {
+                            StringSelection selection = new StringSelection(codeArea.getText());
+                            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, null);
+                        }
+                    });
+
+                    JLabel insertIcon = new JLabel(new ImageIcon(getClass().getResource("/icons/copy.png")));
+                    insertIcon.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                    insertIcon.addMouseListener(new MouseAdapter() {
+                        @Override
+                        public void mouseClicked(MouseEvent e) {
+                            System.out.println("Insert code triggered");
+                        }
+                    });
+
+                    iconRow.add(copyIcon);
+                    iconRow.add(insertIcon);
+
+                    codeBlockPanel.add(iconRow);
+                    codeBlockPanel.add(Box.createVerticalStrut(10));
+                    codeBlockPanel.add(scrollPane);
+
+                    targetPanel.add(Box.createVerticalStrut(10));
+                    targetPanel.add(codeBlockPanel);
+
+                    inCodeBlock = false;
+                }
+            } else if (inCodeBlock) {
+                codeBuilder.append(line).append("\n");
+            } else {
+                textBuilder.append(line).append("\n");
+            }
+        }
+
+        if (textBuilder.length() > 0) {
+            JTextPane pane = createMarkdownPane(textBuilder.toString(), targetPanel);
+            targetPanel.add(Box.createVerticalStrut(10));
+            targetPanel.add(pane);
+        }
+    } catch (BadLocationException e) {
+        e.printStackTrace();
+    }
+}
