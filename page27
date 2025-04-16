@@ -817,3 +817,45 @@ private void renderMarkdownAndCode(String response, JPanel targetPanel) {
         e.printStackTrace();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+private JTextPane createMarkdownPane(String text, JPanel targetPanel) throws BadLocationException {
+    JTextPane markdownPane = new JTextPane();
+    StyledDocument styledDocument = markdownPane.getStyledDocument();
+    markdownPane.setEditable(false);
+    markdownPane.setOpaque(false);
+    markdownPane.setFont(new Font("JetBrains Mono", Font.PLAIN, 14));
+    markdownPane.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+    // Define base style
+    Style defaultStyle = styledDocument.addStyle("DefaultStyle", null);
+    StyleConstants.setFontFamily(defaultStyle, "JetBrains Mono");
+    StyleConstants.setFontSize(defaultStyle, 14);
+    StyleConstants.setForeground(defaultStyle, new Color(130, 170, 255));
+
+    for (String line : text.split("\n")) {
+        styledDocument.insertString(styledDocument.getLength(), line + "\n", defaultStyle);
+        // If parseAndAppendMarkdown does more (like bold/italic), update it to use this default style as base
+    }
+
+    markdownPane.setPreferredSize(new Dimension(targetPanel.getWidth(), markdownPane.getPreferredSize().height));
+
+    return markdownPane;
+}
