@@ -1,0 +1,303 @@
+<div class="plugin-container">
+    <div class="plugin-table">
+        <h2>VS Code Plugin Releases</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Release Version</th>
+                    <th>Release Date</th>
+                    <th>Download</th>
+                    <th>Release Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr *ngFor="let release of releases" [ngClass]="{ latest: release.latest }">
+                    <td>
+                        {{ release.version }}
+                        <span *ngIf="release.latest" class="badge-latest">Latest</span>
+                    </td>
+                    <td>{{ release.date }}</td>
+                    <td><button class="btn">Download</button></td>
+                    <td><a href="#" class="notes-link">View</a></td>
+                </tr>
+
+            </tbody>
+        </table>
+    </div>
+
+    <div class="plugin-guide">
+        <h3 class="text-center">Installation & Usage</h3>
+        <ol class="install-steps">
+            <li>Download the VS Code extension (<code>.vsix</code> file).</li>
+            <li>Open <strong>Visual Studio Code</strong>.</li>
+            <li>Go to <strong>Settings</strong> &rarr; <strong>Install from VSIX</strong>.</li>
+            <li>Select the downloaded <code>.vsix</code> file to install.</li>
+            <li>Open the Command Palette and search for <code>My Plugin</code> to get started.</li>
+        </ol>
+
+        <p class="text-center"><strong>Watch how it works:</strong></p>
+
+        <!-- PrimeNG Carousel -->
+        <p-carousel [value]="steps" [numVisible]="1" [numScroll]="1" [autoplayInterval]="10000" [circular]="true"
+            [showNavigators]="true" class="center-carousel">
+            <ng-template pTemplate="item" let-step>
+                <div class="carousel-item text-center">
+                    <p><strong>{{step.title}}</strong></p>
+                    <img [src]="step.image" alt="{{step.title}}" class="usage-gif">
+                </div>
+            </ng-template>
+        </p-carousel>
+    </div>
+
+</div>
+
+
+:host {
+    display: block;
+    background-color: #212121;
+    color: #e0e0e0;
+    font-family: 'Segoe UI', sans-serif;
+    padding: 2rem;
+}
+
+.plugin-container {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 2rem;
+    background: #2a2a2a;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
+    transition: transform 0.3s ease;
+}
+
+// .plugin-container:hover {
+//     transform: translateY(-5px);
+// }
+
+.plugin-table,
+.plugin-guide {
+    width: 48%;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+th,
+td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid #3c3c3c;
+}
+
+th {
+    background-color: #333;
+    color: #f5f5f5;
+}
+
+.btn {
+    background-color: #4e88ff;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.btn:hover {
+    background-color: #2f6ee0;
+}
+
+.plugin-guide {
+    background: linear-gradient(145deg, #2b2b2b, #1c1c1c);
+    padding: 1rem 1.5rem;
+    border-radius: 10px;
+    animation: fadeIn 0.8s ease-in;
+}
+
+.plugin-guide p {
+    margin: 0.5rem 0;
+}
+
+code {
+    background-color: #333;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #80d8ff;
+}
+
+.notes-link {
+    color: #64b5f6;
+    text-decoration: none;
+    font-weight: 500;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.notes-link::after {
+    content: '↗';
+    font-size: 0.75rem;
+    margin-left: 6px;
+    opacity: 0.6;
+    transition: transform 0.2s ease;
+}
+
+.notes-link:hover {
+    color: #90caf9;
+    text-decoration: underline;
+}
+
+.notes-link:hover::after {
+    transform: translateY(-1px);
+    opacity: 1;
+}
+
+.latest {
+    background-color: #29394f;
+    box-shadow: inset 0 0 0 1px #4e88ff;
+    position: relative;
+    z-index: 1;
+    animation: slideFadeIn 0.8s ease;
+}
+
+.badge-latest {
+    background-color: #4e88ff;
+    color: white;
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 6px;
+    margin-left: 8px;
+    vertical-align: middle;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.install-steps {
+    padding-left: 1.5rem;
+    margin: 1rem 0;
+    list-style: decimal;
+}
+
+.install-steps li {
+    margin: 0.5rem 0;
+    line-height: 1.6;
+}
+
+.carousel-step-card {
+    padding: 1.5rem;
+    text-align: center;
+    background: #1e1e1e;
+    border-radius: 12px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+}
+
+.carousel-step-card h4 {
+    color: #4e88ff;
+    margin-bottom: 1rem;
+}
+
+.step-image {
+    max-width: 100%;
+    border-radius: 8px;
+    border: 1px solid #444;
+    box-shadow: 0 0 6px rgba(255, 255, 255, 0.1);
+    transition: transform 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.image-container {
+    position: relative;
+    cursor: pointer;
+    display: inline-block;
+}
+
+.image-container .step-image {
+    transition: transform 0.3s ease;
+}
+
+.image-container .zoom-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.9);
+    opacity: 0;
+    transition: all 0.2s ease;
+    background-color: rgba(0, 0, 0, 0.6);
+    padding: 10px;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 1.5rem;
+    pointer-events: none;
+}
+
+.image-container:hover .step-image {
+    transform: scale(1.05);
+}
+
+.image-container:hover .zoom-icon {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.usage-gif {
+    width: 100%;
+    max-width: 480px;
+    border-radius: 10px;
+    border: 1px solid #444;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+
+
+export class PluginComponent {
+
+  releases = [
+    { version: 'v1.3.0', date: 'April 18, 2025', latest: true },
+    { version: 'v1.2.5', date: 'March 10, 2025', latest: false },
+  ];
+
+  // Define your steps for the carousel
+  steps = [
+    {
+      title: 'Step 1: Download the Extension',
+      image: ''
+    },
+    {
+      title: 'Step 2: Open Visual Studio Code',
+      image: ''
+    },
+    {
+      title: 'Step 3: Install the Plugin',
+      image: ''
+    }
+  ];
+
+}
