@@ -1,0 +1,114 @@
+.plugin-header {
+        background-color: #2a2a2a;
+        border-radius: 16px;
+        padding: 2rem 3rem;
+        margin-bottom: 3rem;
+        box-shadow: 0 0 25px rgba(0, 0, 0, 0.5);
+        animation: fadeSlideIn 1s ease forwards;
+        opacity: 0;
+        color: #eee;
+        font-family: "Poppins", sans-serif;
+    }
+
+    .plugin-highlight h1 {
+        font-size: 2.25rem;
+        color: #61dafb;
+        margin: 0 0 0.4rem;
+        font-weight: 700;
+        text-shadow: 0 0 10px #61dafb55;
+    }
+
+    .plugin-highlight p {
+        font-size: 1.1rem;
+        color: #bbbbbb;
+        margin: 0 0 1.5rem;
+        font-weight: 400;
+    }
+
+    .plugin-platforms {
+        display: flex;
+        gap: 2rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .platform-card {
+        background-color: #333333; /* slightly lighter than #2a2a2a for separation */
+        border-radius: 12px;
+        padding: 1rem 1.5rem;
+        width: 150px;
+        text-align: center;
+        box-shadow: 0 0 12px rgba(0, 0, 0, 0.3);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        cursor: default;
+        user-select: none;
+    }
+
+    .platform-card:hover {
+        transform: translateY(-6px) scale(1.05);
+        box-shadow: 0 8px 25px rgba(97, 218, 251, 0.6);
+    }
+
+    .platform-card img {
+        width: 48px;
+        height: 48px;
+        margin-bottom: 0.75rem;
+        filter: drop-shadow(0 0 2px #000000cc);
+    }
+
+    .platform-card span {
+        display: block;
+        font-weight: 600;
+        color: #a9d7f5;
+        font-size: 1.05rem;
+        text-shadow: 0 0 6px #61dafb33;
+    }
+
+    /* Animation */
+    @keyframes fadeSlideIn {
+        from {
+            transform: translateY(-20px);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+</style>
+
+<div class="plugin-header">
+    <div class="plugin-highlight">
+        <h1>🧩 Seamless Integration with IDEs & API</h1>
+        <p>Supports VSCode, Visual Studio 2019/2022, PyCharm, and REST API interaction.</p>
+    </div>
+    <div class="plugin-platforms">
+        <div class="platform-card vscode">
+            <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/vscode/vscode-original.svg" alt="VSCode" />
+            <span>VSCode</span>
+        </div>
+        <div class="platform-card vs2019">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/59/Visual_Studio_Icon_2019.svg/512px-Visual_Studio_Icon_2019.svg.png"
+                alt="Visual Studio 2019" />
+            <span>Visual Studio 2019</span>
+        </div>
+        <div class="platform-card vs2022">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/Visual_Studio_Icon_2022.svg/2048px-Visual_Studio_Icon_2022.svg.png"
+                alt="Visual Studio 2022" />
+            <span>Visual Studio 2022</span>
+        </div>
+        <div class="platform-card pycharm">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/1/1d/PyCharm_Icon.svg" alt="PyCharm" />
+            <span>PyCharm</span>
+        </div>
+        <div class="platform-card pycharm">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/1/1d/PyCharm_Icon.svg" alt="PyCharm" />
+            <span>PyCharm</span>
+        </div>
+        <div class="platform-card api-support">
+            <img src="https://media.lordicon.com/icons/wired/gradient/1330-rest-api.svg" alt="API Support" />
+            <span>REST API</span>
+        </div>
+    </div>
+</div>
