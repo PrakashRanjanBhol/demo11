@@ -112,3 +112,111 @@
         </div>
     </div>
 </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.plugin-header {
+    background-color: #f9f9f9;
+    border-radius: 16px;
+    padding: 2rem 3rem;
+    margin-bottom: 3rem;
+    box-shadow: 0 0 25px rgba(0, 0, 0, 0.08);
+    animation: fadeSlideIn 1s ease forwards;
+    opacity: 0;
+    color: #222;
+    font-family: "Poppins", sans-serif;
+}
+
+.plugin-highlight h1 {
+    font-size: 2.25rem;
+    color: #007acc;
+    margin: 0 0 0.4rem;
+    font-weight: 700;
+    text-shadow: 0 0 6px rgba(0, 122, 204, 0.15);
+}
+
+.plugin-highlight p {
+    font-size: 1.1rem;
+    color: #555;
+    margin: 0 0 1.5rem;
+    font-weight: 400;
+}
+
+.plugin-platforms {
+    display: flex;
+    gap: 2rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.platform-card {
+    background-color: #ffffff;
+    border-radius: 12px;
+    padding: 1rem 1.5rem;
+    width: 150px;
+    text-align: center;
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.08);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    cursor: default;
+    user-select: none;
+    border: 1px solid #ddd;
+}
+
+.platform-card:hover {
+    transform: translateY(-6px) scale(1.05);
+    box-shadow: 0 8px 20px rgba(0, 122, 204, 0.2);
+}
+
+.platform-card img {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 0.75rem;
+    filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.1));
+}
+
+.platform-card span {
+    display: block;
+    font-weight: 600;
+    color: #007acc;
+    font-size: 1.05rem;
+    text-shadow: 0 0 6px rgba(0, 122, 204, 0.08);
+}
+
+/* Animation */
+@keyframes fadeSlideIn {
+    from {
+        transform: translateY(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
